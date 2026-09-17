@@ -143,8 +143,9 @@ cmake --build ~/mealprep/llama.cpp/build-cpu --target llama-server -j8
 git clone https://github.com/sandravwc/mealprep ~/mealprep/repo
 ```
 
-Then two runit services (`llama`, `mealprep`) and three cron lines, exact
-contents in `docs/server.md`. Deploy = `git pull && sv restart mealprep`.
+Then one runit service (`mealprep`) and four cron lines, exact contents in
+`docs/server.md`. The model server is started by each job and stopped after,
+nothing holds 5 GB while idle. Deploy = `git pull && sv restart mealprep`.
 
 Daily driver: open `http://<poco>:8090`, add to home screen, install ntfy,
 subscribe to the topic. Optional: Syncthing-Fork sharing `receipts/`.

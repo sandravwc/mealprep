@@ -71,7 +71,8 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - [x] Qwen3-VL-2B tested on the 3 photos: with product examples in the prompt it parrots the examples, without them it loops one word ("Schnaps" x 200) until max_tokens. Rejected. Files stay in `models/` for a later retry with repeat penalty
 - [x] Prompt examples removed for E4B too, same parroting risk
 - [ ] Tiling: crop photo 2x2, run each tile, union names. 4x time, higher effective resolution. Try after the model comparison
-- Incident 2026-09-17: second llama-server (Qwen, 2.3 GB) next to E4B (5 GB) + Shoko proot → Android killed the whole Termux app. sshd, llama, app all gone until Termux is reopened. Termux:Boot only fires on reboot. Never load two models at once on this box
+- Incident 2026-09-17, twice: Android killed the Termux app process, `dumpsys activity exit-info com.termux` says LOW_MEMORY, an earlier one says OneKeyClean (HyperOS cleaner). Resident E4B (5 GB) + Shoko proot inside one app process is what HyperOS sees. Fix: no resident llama service, `intake.llm()` starts the server per job and stops it after. Baseline went 8.2 → 3.4 GB used. Recovery without touching the phone: `adb shell am start -n com.termux/.HomeActivity`, profile.d starts the services
+- [ ] HyperOS side, needs taps: lock Termux in recents (so clear-all skips it), Battery saver → No restrictions. `dumpsys deviceidle whitelist +com.termux` and RUN_IN_BACKGROUND allow are already set via adb
 
 ### 4b. NPU / GPU on 8 Gen 1
 

@@ -11,10 +11,11 @@
 - Secrets (ntfy topic) live in `~/mealprep/.env` on the Poco, never in the repo
 - OpenCL: dead. Linker namespace blocks vendor driver from Termux. Don't retry without an APK
 - Deploy: `cd ~/mealprep/repo && git pull && sv restart mealprep` (SVDIR exported)
-- Services: `llama` (:8080 localhost only), `mealprep` (:8090 LAN). Logs `$PREFIX/var/log/sv/<name>/current`
+- Service: `mealprep` (:8090 LAN). `llama` service exists but is disabled, jobs start their own. Logs `$PREFIX/var/log/sv/<name>/current`
 - Data: `~/mealprep/data/{inventory,receipts,aliases}.json`, images `~/mealprep/receipts/`
 - Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`
 - Suggest manually: `python3 ~/mealprep/repo/server/suggest.py`. Cron 17:00 daily
 - Mock stock was added 2026-09-17 with `receipt: "mock"`, delete via "weg" or filter inventory.json
-- Cron: intake */5, janitor 16:50, suggest 17:00
+- Cron: intake */5, fridge */5, janitor 16:50, suggest 17:00
+- Termux dead (ssh refused, phone pings): `adb shell am start -n com.termux/.HomeActivity`, services come back via profile.d. Reason: `adb shell dumpsys activity exit-info com.termux`
 - Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"
