@@ -67,7 +67,10 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - [x] Diff against stock: seen but not in stock → add proposal. Perishable in stock but unseen on 2 consecutive photos → remove proposal. Substring name match, no fuzzy lib
 - [x] Proposals in PWA with ✓ / ✕. Nothing touches stock without a tap. Accept-add uses category shelf days, qty 1 Stück
 - [ ] Score recall on 10 real fridge photos before trusting it. No real photo tested yet
-- [ ] Qwen3-VL-2B as second opinion if E4B recall is poor
+- [ ] E4B recall on real photos is poor: top shelf 2 of ~8 readable products, pantry only generic groups. Prompt tightened, untested
+- [ ] Qwen3-VL-2B downloaded (`models/Qwen3-VL-2B-Instruct-Q8_0.gguf` + mmproj). Compare on the same 3 photos with `eval_fridge.py`. Run it INSTEAD of E4B, not beside it
+- [ ] Tiling: crop photo 2x2, run each tile, union names. 4x time, higher effective resolution. Try after the model comparison
+- Incident 2026-09-17: second llama-server (Qwen, 2.3 GB) next to E4B (5 GB) + Shoko proot → Android killed the whole Termux app. sshd, llama, app all gone until Termux is reopened. Termux:Boot only fires on reboot. Never load two models at once on this box
 
 ### 4b. NPU / GPU on 8 Gen 1
 
