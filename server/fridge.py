@@ -12,11 +12,11 @@ SESSION = 3600  # photos within an hour = one scan of the same kitchen
 
 
 def prompt():
-    return ('Photo of a fridge shelf, fridge door or pantry shelf. List every food or drink product you can identify, in German, '
-            'as a JSON array of {name, category}. category one of ' + str(list(cats())) + '. Read the labels: give the '
-            'specific product name printed on the packaging, brand included if readable. Never a generic group word. '
-            'Skip containers whose contents you cannot see, foil bundles and non-food objects. One entry per distinct '
-            'product, no quantities, no invented items. Output only JSON.')
+    return ('Foto von einem Kühlschrankfach, einer Kühlschranktür oder einem Vorratsregal. Liste jedes Lebensmittel und '
+            'Getränk auf, das du sicher erkennst, als JSON-Array von {name, category}. category ist eines von '
+            + str(list(cats())) + '. name auf Deutsch, so wie es auf der Packung steht, Marke wenn lesbar. Keine '
+            'Sammelbegriffe, keine Behälter mit unsichtbarem Inhalt, keine Alufolie, nichts Erfundenes, jedes Produkt nur '
+            'einmal. Nur JSON ausgeben.')
 
 
 def ask_llm(img):
@@ -32,10 +32,11 @@ def ask_llm(img):
 
 def parse_seen(text):
     a, b = text.find('['), text.rfind(']')
-    out, known = [], cats()
+    out, known, seen = [], cats(), set()
     for it in json.loads(text[a:b + 1]) if a >= 0 and b > a else []:
         name = str(it.get('name', '') if isinstance(it, dict) else it).strip()
-        if name:
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
             cat = it.get('category') if isinstance(it, dict) else None
             out.append({'name': name, 'category': cat if cat in known else 'other'})
     return out
