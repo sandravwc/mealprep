@@ -103,16 +103,19 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 
 ### 4. Fridge photo (`fridge.py`)
 
-- 🧊 button or Syncthing `fridge/` folder. Model lists visible items, script
-  diffs against stock: unseen-in-stock -> "add?", perishable stock unseen on two
+- 🧊 button or a file dropped into `fridge/`. Model lists visible items, a
+  second text-only pass on the loaded model keeps only what it calls food or
+  drink, container-only names ("Kleine blaue Dose") are dropped by regex.
+  Then the script diffs against stock: unseen-in-stock -> "add?", perishable stock unseen on two
   photos in a row -> "remove?". Proposals sit in the PWA until tapped ✓ or ✕.
   Occlusion makes auto-apply wrong, so nothing is automatic here.
 
 ### 5. PWA (`app.py` + `index.html`)
 
 - Sections: Offen (unmade, last 2 days, "gekocht" button), Gekocht (date,
-  thumbs, last 7 days + "ältere"), Kühlschrank-Vorschläge (✓ ✕), Vorrat
-  (tiers, "weg" button), Bons
+  thumbs, last 7 days + "ältere"), Schrank-Vorschläge (✓ ✕), Vorrat
+  grouped by shelf stability (verdirbt schnell / hält eine Woche / einen
+  Monat / überlebt dich) with expiry tags per item, Bons
   (collapsible per day, tap thumbnail for the photo).
 - Burger menu: taste toggles, free text, learned likes/dislikes, tag editor,
   category table (shelf and grace days). Saved to `data/profile.json` and

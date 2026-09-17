@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fridge/pantry photo -> proposals.json (add/remove suggestions), never touches stock directly.
 Usage: fridge.py [file ...]; no args = every unprocessed file in fridge/."""
-import base64, contextlib, json, os, sys, time, urllib.request, uuid
+import base64, contextlib, json, os, re, sys, time, urllib.request, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake import DATA, HOME, LLM, cats, load, save, notify, llm, job_lock  # noqa: E402
 
@@ -40,6 +40,35 @@ def parse_seen(text):
             cat = it.get('category') if isinstance(it, dict) else None
             out.append({'name': name, 'category': cat if cat in known else 'other'})
     return out
+
+
+CONTAINER = re.compile(r'^(kleine?r?s?|große?r?s?|blaue?s?|rote?s?|grüne?s?|weiße?s?|gelbe?s?|schwarze?s?|jar|jars|glas|gläser|dose|dosen|'
+                       r'flasche|flaschen|behälter|box|kiste|kisten|packung|verpackung|beutel|tüte|tuch|stoff|folie|alufolie|'
+                       r'with|contents|mit|inhalt|of|unbekannt|produkt|lebensmittel|verpackt|verpacktes|\s)+$', re.I)
+
+
+def food_only(seen):
+    """Second pass, text only, model already loaded: keep entries the model itself calls food or drink.
+    Small VLMs list stickers, containers and packaging words; asking again in text catches most of it."""
+    seen = [x for x in seen if not CONTAINER.match(x['name'])]
+    if not seen:
+        return seen
+    names = [x['name'] for x in seen]
+    q = ('Welche dieser Einträge sind ein konkretes Lebensmittel oder Getränk? Nein für: Behälter, Verpackung, '
+         'Sammelbegriff, Marke ohne Produkt, Sticker, Nicht-Essbares. Antworte nur als JSON-Objekt {name: true|false}.\n'
+         + json.dumps(names, ensure_ascii=False))
+    try:
+        req = {'chat_template_kwargs': {'enable_thinking': False}, 'temperature': 0, 'max_tokens': 400,
+               'messages': [{'role': 'user', 'content': q}]}
+        r = urllib.request.urlopen(urllib.request.Request(
+            LLM, json.dumps(req).encode(), {'Content-Type': 'application/json'}), timeout=300)
+        text = json.load(r)['choices'][0]['message']['content']
+        verdict = json.loads(text[text.find('{'):text.rfind('}') + 1])
+        verdict = {str(k).lower(): bool(v) for k, v in verdict.items()}
+    except (OSError, ValueError, KeyError) as e:
+        print('food filter skipped:', e, file=sys.stderr)
+        return seen
+    return [x for x in seen if verdict.get(x['name'].lower(), True)]
 
 
 def same(a, b):
@@ -101,7 +130,7 @@ if __name__ == '__main__':
     with llm() if files else contextlib.nullcontext():
         for f in files:
             try:
-                seen = parse_seen(ask_llm(f))
+                seen = food_only(parse_seen(ask_llm(f)))
             except Exception as e:
                 print(f'{f}: {e}', file=sys.stderr)
                 notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
