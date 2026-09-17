@@ -170,7 +170,8 @@ Then one runit service (`mealprep`) and four cron lines, exact contents in
 `docs/server.md`. The model server is started by each job and stopped after,
 nothing holds 5 GB while idle. Deploy = `git pull && sv restart mealprep`.
 
-Daily driver: open `http://<poco>:8090`, add to home screen, install ntfy,
+Daily driver: open `https://poco.xn--bdk.dog:8443` (or `http://<poco>:8090` on
+the LAN), add to home screen, install ntfy,
 subscribe to the topic. 
 
 ## Test

@@ -101,8 +101,9 @@ Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the 
 
 - [x] Tailscale tried and dropped: built from upstream source with Termux's Go (its stdlib patch bypasses Android's netlink block, plus omit tags and the android exclusion removed from acme/cert), daemon ran clean in userspace mode. Dropped because the daily driver would need the Tailscale app forever. Binaries stay in `~/.tailscale`, service disabled
 - [x] acme.sh installed on the Poco, `dns_autodns` module. `app.py` serves TLS on 8443 from `~/mealprep/tls/` when present, HTTP 8090 stays
-- [ ] Issue cert for `poco.xn--bdk.dog` (needs AutoDNS credentials in the environment), A record → 192.168.1.106
+- [x] Cert issued 2026-09-17 for `poco.xn--bdk.dog` (A → 192.168.1.106), Let's Encrypt via acme.sh `dns_autodns`. AutoDNS API user is a clone of the main user with zone read + zone update + zone bulk update (`0202001`, the one acme.sh needs). Renews itself, reloadcmd restarts `mealprep`. https://poco.xn--bdk.dog:8443 live, HTTP 8090 stays
 - [ ] Service worker + manifest icons → real standalone install
+- [ ] Public reachability: router port-forward 8443 → Poco, A record on the public IP. DynDNS = cron on the Poco updating the A record over the AutoDNS API when the public IP changes, no provider, no account
 - [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
 - [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`
 - [ ] Then ntfy becomes optional, keep as fallback or remove
