@@ -25,12 +25,13 @@ async function up(f){if(!f)return;$('msg').textContent='Hochladen…';
  const r=await fetch('/upload',{method:'POST',body:f});$('msg').textContent=r.ok?'Wird gelesen, ~2 min':'Upload fehlgeschlagen';load()}
 let allSug=0;
 function show(f){$('big').src='/receipts/'+f;$('dlg').showModal()}
+async function made(id){await fetch('/api/made/'+id,{method:'POST'});load()}
 async function rm(id){await fetch('/api/remove/'+id,{method:'POST'});load()}
 async function load(){const s=await (await fetch('/api/state')).json();const today=new Date().toISOString().slice(0,10);
  if(s.pending.length)$('msg').textContent='Wird gelesen: '+s.pending.join(', ');else if($('msg').textContent.startsWith('Wird'))$('msg').textContent='';
  const week=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
  const sug=s.suggestions.filter(x=>allSug||x.time>=week).slice().reverse();
- $('sug').innerHTML=sug.map(x=>`<li><span>${x.title} <small>${x.time.slice(0,10)}${x.made?' · gekocht':''}</small><br><small>${x.text||''}</small></span></li>`).join('')||'<li><small>noch keine</small></li>';
+ $('sug').innerHTML=sug.map(x=>`<li><span>${x.title} <small>${x.time.slice(0,10)}${x.made?' · gekocht ✓':''}</small><br><small>${x.text||''}</small><br><small>${(x.uses||[]).join(', ')}</small></span>${x.made?'':`<button onclick="made('${x.id}')">gekocht</button>`}</li>`).join('')||'<li><small>noch keine</small></li>';
  $('more').hidden=allSug||sug.length==s.suggestions.length;
  $('invn').textContent=s.inventory.length;
  $('inv').innerHTML=s.inventory.sort((a,b)=>a.expires<b.expires?-1:1).map(i=>{const d=(new Date(i.expires)-new Date(today))/864e5;

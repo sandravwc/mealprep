@@ -63,6 +63,19 @@ class H(BaseHTTPRequestHandler):
                 pending.add(name)
             threading.Thread(target=run_intake, args=(f'{RECEIPTS}/{name}',), daemon=True).start()
             return self.send(202, {'file': name})
+        if p.startswith('/api/made/'):  # mark cooked, drop used ingredients from stock
+            with lock:
+                sug = load(f'{DATA}/suggestions.json', [])
+                used = {u.lower() for s in sug if s['id'] == p[10:] for u in s['uses']}
+                for s in sug:
+                    if s['id'] == p[10:]:
+                        s['made'] = True
+                json.dump(sug, open(f'{DATA}/suggestions.json.tmp', 'w'), ensure_ascii=False, indent=1)
+                os.replace(f'{DATA}/suggestions.json.tmp', f'{DATA}/suggestions.json')
+                inv = [i for i in load(f'{DATA}/inventory.json', []) if i['name'].lower() not in used]
+                json.dump(inv, open(f'{DATA}/inventory.json.tmp', 'w'), ensure_ascii=False, indent=1)
+                os.replace(f'{DATA}/inventory.json.tmp', f'{DATA}/inventory.json')
+            return self.send(200, {'ok': True})
         if p.startswith('/api/remove/'):
             with lock:
                 inv = load(f'{DATA}/inventory.json', [])
