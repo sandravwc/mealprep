@@ -10,3 +10,7 @@
 - Request must include `"chat_template_kwargs":{"enable_thinking":false}` or Gemma thinks until max_tokens
 - Secrets (ntfy topic) live in `~/mealprep/.env` on the Poco, never in the repo
 - OpenCL: dead. Linker namespace blocks vendor driver from Termux. Don't retry without an APK
+- Deploy: `cd ~/mealprep/repo && git pull && sv restart mealprep` (SVDIR exported)
+- Services: `llama` (:8080 localhost only), `mealprep` (:8090 LAN). Logs `$PREFIX/var/log/sv/<name>/current`
+- Data: `~/mealprep/data/{inventory,receipts,aliases}.json`, images `~/mealprep/receipts/`
+- Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`

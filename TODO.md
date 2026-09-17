@@ -28,7 +28,7 @@ Hardware reality: 12 GB variant (11 GB usable), Android 15, Termux sshd already 
 - [ ] Daily driver: Syncthing app, pair with Poco, share both folders. Camera app with save-folder setting (Open Camera) + home shortcut
 - [ ] ntfy app on daily driver, subscribe to topic from `.env`, confirm test push arrived
 - [ ] Reboot Poco once, verify sshd/syncthing/crond come back (Termux:Boot)
-- [ ] Poll `receipts/` from cron every minute → trigger intake job (phase 1)
+- [x] Cron every 5 min runs `intake.py` for files Syncthing dropped
 
 ## 0b. Model eval (before writing intake code)
 
@@ -46,14 +46,20 @@ NPU verdict (2026-09): **not usable from Termux on 8 Gen 1.**
 - LiteRT + Qualcomm QNN delegate does list SM8450, but only as in-app Android delegate. Needs an APK, not a shell
 - Only NPU path = write a tiny Android app that hosts LiteRT+QNN and exposes HTTP. Parked under Later
 
-## 1. Intake: receipt → inventory
+## 1. Intake: receipt → inventory (shipped 2026-09-17)
 
-- [ ] Receipt photo → OCR text (photo via `termux-camera-photo` or sync from phone camera folder)
-- [ ] OCR text → Gemma E4B few-shot → JSON `[{name, qty, unit, category, bought}]` (constrain with JSON grammar)
-- [ ] Learned mapping cache: raw receipt line → canonical item, skip LLM on hit
-- [ ] Strip Pfand, discounts, totals
-- [ ] Inventory store: `inventory.json`, load whole file, no DB
-- [ ] Per-category default shelf life table (milk 7 d, eggs 21 d, ...) → `expires`
+PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `server/intake.py` via upload thread + cron every 5 min for Syncthing drops.
+
+- [x] Camera button in PWA → POST /upload → intake. Syncthing `receipts/` folder also picked up by cron
+- [x] Photo → Gemma E4B vision → JSON `{name, qty, unit, category}`, thinking off. No OCR stage, no grammar (JSON came clean every run so far)
+- [x] `data/aliases.json` post-fix map (lowercase model name → canonical). Hand-edit when the model keeps a bad abbreviation
+- [x] Pfand/totals skipped by prompt. Synthetic test: Basilikum got qty 0.25 from the Pfand line next to it. Watch on real receipts
+- [x] `data/inventory.json` flat list, `data/receipts.json` log with raw model output
+- [x] Shelf-life table in `intake.py` → `expires`
+- [x] Inventory page sorted by expiry, "weg" button removes item (early phase 3)
+- [x] ntfy push "N items added" with click → PWA
+- [ ] Real receipts from REWE/Edeka/Aldi/Lidl, score, tune prompt + aliases (phase 0b)
+- [ ] Add-to-home-screen: plain HTTP gives a bookmark shortcut, not standalone. Fine for now. Tailscale HTTPS later if it bugs you
 
 ## 2. Suggest + notify
 
