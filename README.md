@@ -38,7 +38,7 @@ no database. Three Python files and one HTML page.
 - Gemma 4 E4B via llama.cpp: only model tier that fits and reads German
   receipts well. One model for receipts, fridge photos and recipe text.
   CPU only: Hexagon NPU and Adreno OpenCL are both unreachable from Termux
-  on this SoC (see TODO.md, phase 0).
+  on this SoC (see docs/TODO.md, phase 0).
 - PWA instead of APK: one HTML file, no toolchain, no signing, no yearly SDK
   tax. Push comes from ntfy because plain-HTTP pages cannot do web push.
 - Flat JSON instead of SQLite: a household has hundreds of items, not
@@ -56,8 +56,7 @@ server/janitor.py        daily dedupe/junk pass, flags food past grace, never de
 server/index.html        the whole UI, vanilla JS, German labels
 server/test_*.py         one assert-based check per script, run with python3
 docs/server.md           how the Poco is wired (services, paths, cron)
-docs/design-chat.md      original design conversation
-TODO.md                  phases, decisions, dead ends
+docs/TODO.md             phases, decisions, dead ends
 ```
 
 Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
