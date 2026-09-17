@@ -16,3 +16,5 @@
 - Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`
 - Suggest manually: `python3 ~/mealprep/repo/server/suggest.py`. Cron 17:00 daily
 - Mock stock was added 2026-09-17 with `receipt: "mock"`, delete via "weg" or filter inventory.json
+- Cron: intake */5, janitor 16:50, suggest 17:00
+- Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"

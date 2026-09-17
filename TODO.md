@@ -73,6 +73,8 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 - [x] Nutrition balance: one sentence in prompt. No scoring. Judge after a month
 - [x] ntfy push "Heute kochen?" with both titles, click opens PWA
 - [ ] ntfy action buttons on the push itself. Now: open PWA, tap "gekocht"
+- [x] Taste profile: free text in PWA (`data/profile.txt`) + 👍/👎 on cooked recipes, both in the prompt
+- [x] PWA: Offen (open, last 2 d) / Gekocht (date, thumbs, last 7 d + ältere) / Geschmack / Vorrat / Bons
 
 ## 3. Consumption loop
 
@@ -82,7 +84,8 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 ## 3. Consumption loop
 
 - [ ] Partial decrement (used 2 of 10 eggs). Now all-or-nothing
-- [ ] Weekly "what's gone?" push listing expired items, batch-confirm
+- [x] `server/janitor.py` cron 16:50: dedupe stock, drop alias-"" junk, drop items 7 d past expiry, dedupe suggestions. Pushes summary only when it removed something
+- [ ] Weekly "what's gone?" push listing expired items, batch-confirm. Janitor's 7 d grace covers the lazy case
 - [ ] NFC tag / home-screen shortcut → PWA
 
 ## 4. Secondary intake
