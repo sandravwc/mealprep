@@ -167,7 +167,6 @@ REWE photos, recipes generated, pushes arriving. Now: daily use, tune
 
 ## Later / maybe
 
-- Weather in the prompt (open-meteo, one request).
 - Partial quantities on "gekocht" (2 of 10 eggs).
 - Action buttons on the ntfy push itself.
 - HTTPS via Tailscale, then web push, then drop ntfy. Planned as phase 5.
