@@ -21,7 +21,7 @@ Hardware reality: 12 GB variant (11 GB usable), Android 15, Termux sshd already 
 - [x] llama.cpp CPU build: `~/mealprep/llama.cpp/build-cpu/bin/{llama-server,llama-bench,llama-mtmd-cli}`
 - [ ] llama.cpp OpenCL build in `build-ocl`, does Adreno 730 load at all
 - [x] Models in `~/mealprep/models`: gemma-4-E4B-it-Q4_0 (4.6 GB), mmproj Q8_0, PaddleOCR-VL-1.6 + mmproj
-- [ ] `llama-bench` E4B CPU: pp/tg tok/s, cpuss temp before/after
+- [x] `llama-bench` E4B Q4_0 CPU, pp512/tg128: 4 thr = 12.8 / 6.7 tok/s, 8 thr = 24.4 / 4.9 tok/s. Battery temp 39→40 °C. Use 8 thr for image jobs (pp dominates)
 - [x] `termux-notification` works (but pops on Poco only, hence ntfy)
 - [ ] Daily driver: Syncthing app, pair with Poco, share both folders. Camera app with save-folder setting (Open Camera) + home shortcut
 - [ ] ntfy app on daily driver, pick topic, test `curl -d test ntfy.sh/<topic>` from Poco
