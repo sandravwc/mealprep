@@ -95,7 +95,7 @@ SoC is SM8475 = 8+ Gen 1 (TSMC), not 8 Gen 1. Same Hexagon v69, same Adreno 730.
 
 ## 5. HTTPS + web push, drop ntfy
 
-Rule since 2026-09-17: no SaaS. Own domain, own cert, own push. ntfy.sh is the last hosted piece and goes with web push.
+Rule since 2026-09-17: no account-based SaaS. Own domain, own cert. ntfy.sh needs no account and may stay; web push is an upgrade, not a must.
 
 Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the LAN.
 
@@ -105,7 +105,7 @@ Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the 
 - [ ] Service worker + manifest icons → real standalone install
 - [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
 - [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`
-- [ ] Then remove ntfy
+- [ ] Then ntfy becomes optional, keep as fallback or remove
 
 ## Later / maybe never
 
