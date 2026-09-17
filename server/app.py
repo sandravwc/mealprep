@@ -9,7 +9,6 @@ from intake import status, load_profile  # noqa: E402
 from config import load_config, save_config  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, FRIDGE, DATA = f'{HOME}/receipts', f'{HOME}/fridge', f'{HOME}/data'
-pending = set()  # files uploaded, intake not finished yet
 lock = threading.Lock()
 
 
@@ -27,8 +26,12 @@ def save_json(p, d):
 
 def run_intake(path, script='intake.py'):
     subprocess.run(['python3', f'{HERE}/{script}', path])
-    with lock:
-        pending.discard(os.path.basename(path))
+
+
+def pending():
+    """Photos on disk that no result record mentions yet. Survives restarts, unlike an in-memory set."""
+    done = {r['file'] for r in load(f'{DATA}/receipts.json', [])} | set(load(f'{DATA}/fridge.json', {}).get('done', []))
+    return sorted(f for d in (RECEIPTS, FRIDGE) for f in os.listdir(d) if not f.startswith('.') and f not in done)
 
 
 class H(BaseHTTPRequestHandler):
@@ -50,7 +53,8 @@ class H(BaseHTTPRequestHandler):
             recs = load(f'{DATA}/receipts.json', [])
             return self.send(200, {'inventory': [{**i, 'status': status(i)} for i in load(f'{DATA}/inventory.json', [])],
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
-                                   'pending': sorted(pending),
+                                   'pending': pending(),
+                                   'fridge': load(f'{DATA}/fridge.json', {}).get('photos', []),
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
                                    'profile': load_profile(), 'config': load_config(),
                                    'proposals': load(f'{DATA}/proposals.json', [])})
@@ -72,8 +76,6 @@ class H(BaseHTTPRequestHandler):
             folder, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
             name = time.strftime('%Y%m%d-%H%M%S') + '-' + os.urandom(2).hex() + '.jpg'  # two uploads in one second must not collide
             open(f'{folder}/{name}', 'wb').write(body)
-            with lock:
-                pending.add(name)
             threading.Thread(target=run_intake, args=(f'{folder}/{name}', script), daemon=True).start()
             return self.send(202, {'file': name})
         if p.startswith('/api/proposal/'):  # /api/proposal/<id>/accept|reject

@@ -28,6 +28,7 @@ dialog{border:0;background:#000;padding:0;max-width:100vw;max-height:100vh}#set{
 <details open id="propbox"><summary>Schrank-Vorschläge<small id="propn"></small></summary><ul id="props"></ul></details>
 <details open><summary>Vorrat<small id="invn"></small></summary><div id="inv"></div></details>
 <h2>Bons</h2><div id="rec"></div>
+<h2>Schrank-Fotos</h2><div id="fr"></div>
 <dialog id="dlg" onclick="this.close()"><img id="big" alt=""></dialog>
 <dialog id="set"><form method="dialog"><h2>Geschmack</h2><div id="tags"></div>
 <textarea id="prof" rows="3" placeholder="frei: z.B. kein Sellerie, Kinder essen mit"></textarea>
@@ -41,7 +42,7 @@ const $=id=>document.getElementById(id);
 async function up(f,kind){if(!f)return;$('msg').textContent='Hochladen…';
  const r=await fetch('/upload'+(kind?'?kind='+kind:''),{method:'POST',body:f});$('msg').textContent=r.ok?'Wird gelesen, ~2 min':'Upload fehlgeschlagen';load()}
 let allSug=0;
-function show(f){$('big').src='/receipts/'+f;$('dlg').showModal()}
+function show(f,dir){$('big').src='/'+(dir||'receipts')+'/'+f;$('dlg').showModal()}
 async function rate(id,v){await fetch('/api/rate/'+id+'/'+v,{method:'POST'});load()}
 let S={};
 let C={};
@@ -62,6 +63,7 @@ async function made(id){await fetch('/api/made/'+id,{method:'POST'});load()}
 async function rm(id){await fetch('/api/remove/'+id,{method:'POST'});load()}
 async function load(){const s=await (await fetch('/api/state')).json();S=s;const today=new Date().toISOString().slice(0,10);
  if(s.pending.length)$('msg').textContent='Wird gelesen: '+s.pending.join(', ');else if($('msg').textContent.startsWith('Wird'))$('msg').textContent='';
+ const openDays=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
  const week=new Date(Date.now()-7*864e5).toISOString().slice(0,10),twoDays=new Date(Date.now()-2*864e5).toISOString().slice(0,10);
  const item=x=>`<span>${x.title}<br><small>${x.text||''}</small><br><small>${(x.uses||[]).join(', ')}</small></span>`;
  const open=s.suggestions.filter(x=>!x.made&&x.time>=twoDays).reverse();
@@ -72,12 +74,14 @@ async function load(){const s=await (await fetch('/api/state')).json();S=s;const
  S=s;
  const pr=s.proposals||[];$('propbox').hidden=!pr.length;$('propn').textContent=pr.length;
  $('props').innerHTML=pr.map(p=>`<li><span>${p.kind=='add'?'+ ':'− '}${p.name} <small>${p.kind=='add'?p.category:'nicht mehr gesehen'} · ${p.time.slice(5,10)}</small></span><button onclick="prop('${p.id}','accept')">✓</button><button onclick="prop('${p.id}','reject')">✕</button></li>`).join('');
+ const fdays={};for(const r of (s.fridge||[]))(fdays[r.time.slice(0,10)]??=[]).push(r);
+ $('fr').innerHTML=Object.keys(fdays).sort().reverse().map((d,n)=>`<details data-d="f${d}" ${openDays.has('f'+d)||(n==0&&!openDays.size)?'open':''}><summary>${d}<small>${fdays[d].length} Foto${fdays[d].length>1?'s':''}</small></summary><ul>${
+  fdays[d].slice().reverse().map(r=>`<li><img src="/fridge/${r.file}" onclick="show('${r.file}','fridge')"><span>${r.time.slice(11)} <small>${r.seen.join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>';
  $('invn').textContent=s.inventory.length;
  const tier={bad:'Verdorben?',expired:'Abgelaufen, noch ok',soon:'Bald',ok:'Vorrat'},cls={bad:'gone',expired:'soon',soon:'soon',ok:''};
  const row=i=>`<li class="${cls[i.status]}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${i.expires}</small></span><button onclick="rm('${i.id}')">weg</button></li>`;
  $('inv').innerHTML=['bad','expired','soon','ok'].map(t=>{const l=s.inventory.filter(i=>i.status==t).sort((a,b)=>a.expires<b.expires?-1:1);
   return l.length?`<h2>${tier[t]} <small>${l.length}</small></h2><ul>${l.map(row).join('')}</ul>`:''}).join('')||'<small>leer</small>';
- const openDays=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
  const days={};for(const r of s.receipts)(days[r.time]??=[]).push(r);
  $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${openDays.has(d)||(n==0&&!openDays.size)?'open':''}><summary>${d}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${
   days[d].slice().reverse().map(r=>`<li><img src="/receipts/${r.file}" onclick="show('${r.file}')"><span>${r.file.slice(9,11)}:${r.file.slice(11,13)} <small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>'}

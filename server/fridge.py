@@ -90,6 +90,7 @@ if __name__ == '__main__':
     _lock = open(f'{DATA}/.lock', 'w')
     fcntl.flock(_lock, fcntl.LOCK_EX)
     state = load(f'{DATA}/fridge.json', {'done': [], 'misses': {}})
+    state.setdefault('photos', [])
     files = [a for a in sys.argv[1:] if os.path.basename(a) not in state['done']] or sorted(
         f'{FRIDGE}/{f}' for f in os.listdir(FRIDGE)
         if not f.startswith('.') and f not in state['done'] and os.path.isfile(f'{FRIDGE}/{f}')
@@ -110,6 +111,7 @@ if __name__ == '__main__':
         scan['last'] = time.time()
         state['scan'] = scan
         state['done'].append(os.path.basename(f))
+        state['photos'].append({'file': os.path.basename(f), 'time': time.strftime('%Y-%m-%d %H:%M'), 'seen': [x['name'] for x in seen]})
         save(f'{DATA}/fridge.json', state)
         notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu', ', '.join(p['name'] for p in props) or 'nichts Neues')
     if close_scan(state):
