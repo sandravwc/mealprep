@@ -7,13 +7,16 @@ from intake import DATA, HOME, LLM, cats, load, save, notify  # noqa: E402
 
 FRIDGE = f'{HOME}/fridge'
 PERISHABLE = {'produce', 'dairy', 'meat', 'fish', 'bread', 'eggs'}  # only these get "remove?" proposals
-MISSES = 2  # consecutive photos without the item before proposing removal
+MISSES = 2  # consecutive scans without the item before proposing removal
+SESSION = 3600  # photos within an hour = one scan of the same kitchen
 
 
 def prompt():
-    return ('Photo of a fridge or pantry. List every food or drink item you can actually see, in German, as a JSON array '
-            'of {name, category}. category one of ' + str(list(cats())) + '. One entry per distinct product, no quantities, '
-            'no guesses about hidden items. Output only JSON.')
+    return ('Photo of a fridge shelf, fridge door or pantry shelf. List every food or drink product you can identify, in German, '
+            'as a JSON array of {name, category}. category one of ' + str(list(cats())) + '. Read labels and packaging: name '
+            'the specific product ("Deutsche Markenbutter", "Hummus", "Senf", "Sojadrink Barista", "Gouda"), never a group '
+            '("Gemüse", "Dosen", "Gläser", "Behälter", "Saucen", "Gewürze"). Skip containers whose contents you cannot see, '
+            'foil bundles and non-food objects. One entry per distinct product, no quantities. Output only JSON.')
 
 
 def ask_llm(img):
@@ -43,24 +46,43 @@ def same(a, b):
     return a == b or (len(a) > 3 and a in b) or (len(b) > 3 and b in a)  # ponytail: substring match, no fuzzy lib
 
 
-def diff(seen, inv, misses):
-    """seen items vs stock -> (proposals, updated misses). misses = {item id: consecutive photos not seen}."""
-    props = []
-    for s in seen:
-        if not any(same(s['name'], i['name']) for i in inv):
-            props.append({'kind': 'add', 'name': s['name'], 'category': s['category']})
-    if not seen:
-        return props, misses  # not a fridge photo, count nothing
-    new_misses = {}
+def adds(seen, inv):
+    return [{'kind': 'add', 'name': s['name'], 'category': s['category']}
+            for s in seen if not any(same(s['name'], i['name']) for i in inv)]
+
+
+def removes(seen_names, inv, misses):
+    """End of a scan: perishables unseen in the whole scan -> miss +1, propose removal at MISSES."""
+    props, new_misses = [], {}
     for i in inv:
-        if i.get('category') not in PERISHABLE:
-            continue
-        if any(same(s['name'], i['name']) for s in seen):
+        if i.get('category') not in PERISHABLE or any(same(n, i['name']) for n in seen_names):
             continue
         new_misses[i['id']] = misses.get(i['id'], 0) + 1
         if new_misses[i['id']] >= MISSES:
             props.append({'kind': 'remove', 'name': i['name'], 'item': i['id']})
     return props, new_misses
+
+
+def add_proposals(props, fname):
+    old = load(f'{DATA}/proposals.json', [])
+    keep = [p for p in old if not any(p['kind'] == q['kind'] and same(p['name'], q['name']) for q in props)]
+    for p in props:
+        p.update({'id': uuid.uuid4().hex[:8], 'time': time.strftime('%Y-%m-%d %H:%M'), 'file': fname})
+    save(f'{DATA}/proposals.json', keep + props)
+
+
+def close_scan(state):
+    """Called when the last photo is older than SESSION. Turns the scan's union of seen names into misses."""
+    scan = state.get('scan')
+    if not scan or time.time() - scan['last'] < SESSION:
+        return False
+    if scan['seen']:  # a scan that saw nothing is not a scan
+        props, state['misses'] = removes(scan['seen'], load(f'{DATA}/inventory.json', []), state.get('misses', {}))
+        add_proposals(props, 'scan')
+        if props:
+            notify(f'{len(props)} x nicht mehr gesehen', ', '.join(p['name'] for p in props)[:400])
+    state['scan'] = None
+    return True
 
 
 if __name__ == '__main__':
@@ -79,15 +101,16 @@ if __name__ == '__main__':
             print(f'{f}: {e}', file=sys.stderr)
             notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
             continue
-        props, state['misses'] = diff(seen, load(f'{DATA}/inventory.json', []), state['misses'])
-        old = load(f'{DATA}/proposals.json', [])
-        keep = [p for p in old if not any(p['kind'] == q['kind'] and same(p['name'], q['name']) for q in props)]
-        for p in props:
-            p.update({'id': uuid.uuid4().hex[:8], 'time': time.strftime('%Y-%m-%d %H:%M'), 'file': os.path.basename(f)})
-        save(f'{DATA}/proposals.json', keep + props)
+        props = adds(seen, load(f'{DATA}/inventory.json', []))
+        add_proposals(props, os.path.basename(f))
+        scan = state.get('scan') or {'last': 0, 'seen': []}
+        if time.time() - scan['last'] > SESSION:
+            scan = {'last': 0, 'seen': []}
+        scan['seen'] = sorted(set(scan['seen']) | {x['name'] for x in seen})
+        scan['last'] = time.time()
+        state['scan'] = scan
         state['done'].append(os.path.basename(f))
         save(f'{DATA}/fridge.json', state)
-        adds = [p['name'] for p in props if p['kind'] == 'add']
-        rems = [p['name'] for p in props if p['kind'] == 'remove']
-        notify(f'Schrank: {len(seen)} gesehen, +{len(adds)} −{len(rems)}',
-               (('neu: ' + ', '.join(adds)) if adds else '') + (('  weg? ' + ', '.join(rems)) if rems else '') or 'nichts Neues')
+        notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu', ', '.join(p['name'] for p in props) or 'nichts Neues')
+    if close_scan(state):
+        save(f'{DATA}/fridge.json', state)
