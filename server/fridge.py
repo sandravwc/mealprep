@@ -48,8 +48,11 @@ def same(a, b):
 
 
 def adds(seen, inv):
-    return [{'kind': 'add', 'name': s['name'], 'category': s['category']}
-            for s in seen if not any(same(s['name'], i['name']) for i in inv)]
+    out = []
+    for s in seen:
+        if not any(same(s['name'], i['name']) for i in inv) and not any(same(s['name'], o['name']) for o in out):
+            out.append({'kind': 'add', 'name': s['name'], 'category': s['category']})
+    return out
 
 
 def removes(seen_names, inv, misses):

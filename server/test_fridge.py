@@ -4,6 +4,7 @@ seen = parse_seen('```json [{"name":"Milch","category":"dairy"},{"name":"Gurke",
 assert [s['name'] for s in seen] == ['Milch', 'Gurke'] and seen[1]['category'] == 'other'
 inv = [{'id': 'a', 'name': 'H-Milch', 'category': 'dairy'}, {'id': 'b', 'name': 'Feta', 'category': 'dairy'}, {'id': 'c', 'name': 'Reis', 'category': 'pantry'}]
 assert [p['name'] for p in adds(seen, inv)] == ['Gurke']
+assert [p['name'] for p in adds([{'name': 'Glas Gurken', 'category': 'other'}, {'name': 'Gurken', 'category': 'other'}], [])] == ['Glas Gurken']
 props, misses = removes(['Milch', 'Gurke'], inv, {'b': 1})
 assert [p['name'] for p in props] == ['Feta'] and misses == {'b': 2}, (props, misses)  # Reis pantry never, Milch seen -> reset
 print('ok')
