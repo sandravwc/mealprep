@@ -6,4 +6,5 @@ inv = [{'id': 'a', 'name': 'H-Milch', 'category': 'dairy'}, {'id': 'b', 'name': 
 props, misses = diff(seen, inv, {'b': 1})
 assert [(p['kind'], p['name']) for p in props] == [('add', 'Gurke'), ('remove', 'Feta')], props
 assert misses == {'b': 2}  # Reis is pantry, never proposed; Milch seen, counter reset
+assert diff([], inv, {'b': 1}) == ([], {'b': 1})
 print('ok')

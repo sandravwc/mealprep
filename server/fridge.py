@@ -49,6 +49,8 @@ def diff(seen, inv, misses):
     for s in seen:
         if not any(same(s['name'], i['name']) for i in inv):
             props.append({'kind': 'add', 'name': s['name'], 'category': s['category']})
+    if not seen:
+        return props, misses  # not a fridge photo, count nothing
     new_misses = {}
     for i in inv:
         if i.get('category') not in PERISHABLE:
