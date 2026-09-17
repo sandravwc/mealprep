@@ -59,6 +59,7 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 - [x] Inventory page sorted by expiry, "weg" button removes item (early phase 3)
 - [x] ntfy push "N items added" with click → PWA
 - [ ] Real receipts from REWE/Edeka/Aldi/Lidl, score, tune prompt + aliases (phase 0b)
+- [x] Fixed 2026-09-17: intake lock handle was garbage-collected, lock never held, cron + upload intake ran the same file twice → duplicate stock and double ntfy pushes
 - [ ] Add-to-home-screen: plain HTTP gives a bookmark shortcut, not standalone. Fine for now. Tailscale HTTPS later if it bugs you
 
 ## 2. Suggest + notify (shipped 2026-09-17)
@@ -84,8 +85,9 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 ## 3. Consumption loop
 
 - [ ] Partial decrement (used 2 of 10 eggs). Now all-or-nothing
-- [x] `server/janitor.py` cron 16:50: dedupe stock, drop alias-"" junk, drop items 7 d past expiry, dedupe suggestions. Pushes summary only when it removed something
-- [ ] Weekly "what's gone?" push listing expired items, batch-confirm. Janitor's 7 d grace covers the lazy case
+- [x] `server/janitor.py` cron 16:50: dedupe stock, drop alias-"" junk, dedupe suggestions. Never removes food. Pushes "entsorgen?" for items past grace
+- [x] Expiry tiers: `SHELF` (purchase → expires) + `GRACE` per category (days past expires still fine; meat/fish 0, dairy 3, eggs 14, pantry 365). Status ok/soon/expired/bad drives stock view and prompt priority
+- [x] Daily "entsorgen?" push from janitor when something is past grace
 - [ ] NFC tag / home-screen shortcut → PWA
 
 ## 4. Secondary intake
