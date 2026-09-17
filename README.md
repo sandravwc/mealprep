@@ -1,7 +1,7 @@
 # mealprep
 
 Self-hosted meal loop on a phone. Receipt photo in, "cook this tonight" push
-out. Runs on a Poco F5 Pro (Snapdragon 8 Gen 1, 12 GB) under Termux, all
+out. Runs on a Poco F5 Pro (Snapdragon 8+ Gen 1, 8 GB + 4 GB swap) under Termux, all
 inference local via llama.cpp + Gemma 4 E4B. No cloud model, no account,
 no database. Three Python files and one HTML page.
 
@@ -19,26 +19,29 @@ no database. Three Python files and one HTML page.
    Thumbs up/down teaches the profile.
 
 ```
- daily driver phone                           poco f5 pro (termux, anywhere on LAN)
-┌──────────────────────┐                     ┌────────────────────────────────────┐
-│ browser (PWA)  ──────┼── POST /upload ───► │ app.py :8090 ──► intake.py ──┐     │
-│   camera / stock /   │ ◄── /api/state ──── │      ▲                       │     │
-│   recipes / profile  │                     │      │            llama-server :8080│
-│                      │                     │      │            gemma-4-E4B + mmproj
-│ ntfy app  ◄──────────┼── ntfy.sh ◄──────── │ suggest.py ◄─────────────────┘     │
-│                      │                     │ janitor.py      cron 16:50 / 17:00 │
-│ syncthing (optional) ┼── receipts/ ──────► │ data/*.json     runit services     │
-└──────────────────────┘                     └────────────────────────────────────┘
+ daily driver phone                      poco f5 pro (termux, anywhere on LAN)
+┌──────────────────────┐                ┌──────────────────────────────────────┐
+│ browser (PWA)        │ POST /upload   │ app.py :8090 ─► intake.py / fridge.py│
+│  camera, stock,      ├───────────────►│      ▲               │               │
+│  recipes, profile    │◄───────────────┤      │               ▼               │
+│                      │ GET /api/state │ data/*.json    llama-server :8080    │
+│                      │                │      ▲        (started per job)      │
+│ ntfy app             │                │      │               │               │
+│  push + click ◄──────┼── ntfy.sh ◄────┤ suggest.py ◄─────────┘               │
+│                      │                │ janitor.py      cron 16:50 / 17:00   │
+└──────────────────────┘                └──────────────────────────────────────┘
 ```
 
 ## Why this stack
 
-- Phone as server: already on, already has 12 GB RAM, sips power. Termux gives
-  sshd, cron, runit, Python, clang. Nothing else needed.
+- Phone as server: already on, 8 GB RAM plus 4 GB swap, sips power. Termux
+  gives sshd, cron, runit, Python, clang. Nothing else needed. Model is loaded
+  per job, not resident: HyperOS kills the app when it sits on 5 GB all day.
 - Gemma 4 E4B via llama.cpp: only model tier that fits and reads German
   receipts well. One model for receipts, fridge photos and recipe text.
-  CPU only: Hexagon NPU and Adreno OpenCL are both unreachable from Termux
-  on this SoC (see docs/TODO.md, phase 0).
+  CPU only in Termux: the Hexagon NPU has no llama.cpp support on this SoC and
+  Adreno OpenCL is unreachable from an app's linker namespace. The GPU does
+  work from an adb shell (see docs/TODO.md, phase 4b).
 - PWA instead of APK: one HTML file, no toolchain, no signing, no yearly SDK
   tax. Push comes from ntfy because plain-HTTP pages cannot do web push.
 - Flat JSON instead of SQLite: a household has hundreds of items, not
@@ -78,7 +81,7 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   expiry still fine. `status()` yields ok / soon / expired / bad. Editable in
   the PWA, `other` always exists.
 - Non-receipt photo: model answers in prose, recorded as 0 items, no retry.
-- ~90 s per receipt on the 8 Gen 1 CPU. Fine for cron.
+- ~90 s per receipt on the 8+ Gen 1 CPU, plus 15 s model load. Fine for cron.
 
 ### 2. Suggest (`suggest.py`)
 
