@@ -69,7 +69,10 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - [ ] E4B recall on real photos is poor: top shelf 2 of ~8 readable products, pantry only generic groups. Prompt tightened, untested
 - [x] Qwen3-VL-2B tested on the 3 photos: with product examples in the prompt it parrots the examples, without them it loops one word ("Schnaps" x 200) until max_tokens. Rejected. Files stay in `models/` for a later retry with repeat penalty
 - [x] Prompt examples removed for E4B too, same parroting risk
-- [ ] Tiling: crop photo 2x2, run each tile, union names. 4x time, higher effective resolution. Try after the model comparison
+- [x] Tiling tested (2x2, 10 % overlap) on shelf + door photos. Tiles read 2 extra real labels per photo (Sahnig, Brie / Werder, Deutsche Butter) and add 3-4 invented items per photo (Red Bull, Nüsse, Kleine blaue Dose), at 4x the time (~7 min per photo). Not worth it: every invented item is a proposal you must reject. Stays full-photo
+- [ ] Recall ceiling with E4B on cluttered shelves is ~50 %, names generic (Käse, Brot). Prompt in German with no examples is the best variant found. Treat proposals as reminders, not truth
+- [ ] Next real lever: bigger VLM in the same 5 GB budget, one at a time. Qwen3-VL-8B Q4_K_M (~5 GB) is the OCR-strong candidate. Qwen3-VL-2B looped, 8B may not. Gemma 4 12B does not fit
+- [ ] Photo hygiene beats model tuning: one shelf per photo, labels facing the camera, no stickers in frame (the sticker table gave "Bon Jovi" and "Placebo")
 - Incident 2026-09-17, twice: Android killed the Termux app process, `dumpsys activity exit-info com.termux` says LOW_MEMORY, an earlier one says OneKeyClean (HyperOS cleaner). Resident E4B (5 GB) + Shoko proot inside one app process is what HyperOS sees. Fix: no resident llama service, `intake.llm()` starts the server per job and stops it after. Baseline went 8.2 → 3.4 GB used. Recovery without touching the phone: `adb shell am start -n com.termux/.HomeActivity`, profile.d starts the services
 - [ ] HyperOS side, needs taps: lock Termux in recents (so clear-all skips it), Battery saver → No restrictions. `dumpsys deviceidle whitelist +com.termux` and RUN_IN_BACKGROUND allow are already set via adb
 
