@@ -8,7 +8,7 @@ sys.path.insert(0, HERE)
 from intake import status, load_profile  # noqa: E402
 from config import load_config, save_config  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
-RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
+RECEIPTS, FRIDGE, DATA = f'{HOME}/receipts', f'{HOME}/fridge', f'{HOME}/data'
 pending = set()  # files uploaded, intake not finished yet
 lock = threading.Lock()
 
@@ -25,8 +25,8 @@ def save_json(p, d):
     os.replace(p + '.tmp', p)
 
 
-def run_intake(path):
-    subprocess.run(['python3', f'{HERE}/intake.py', path])
+def run_intake(path, script='intake.py'):
+    subprocess.run(['python3', f'{HERE}/{script}', path])
     with lock:
         pending.discard(os.path.basename(path))
 
@@ -52,12 +52,14 @@ class H(BaseHTTPRequestHandler):
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending),
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
-                                   'profile': load_profile(), 'config': load_config()})
-        if p.startswith('/receipts/') and '..' not in p:
-            try:
-                return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
-            except FileNotFoundError:
-                pass
+                                   'profile': load_profile(), 'config': load_config(),
+                                   'proposals': load(f'{DATA}/proposals.json', [])})
+        for prefix, folder in (('/receipts/', RECEIPTS), ('/fridge/', FRIDGE)):
+            if p.startswith(prefix) and '..' not in p:
+                try:
+                    return self.send(200, open(f'{folder}/{p[len(prefix):]}', 'rb').read(), 'image/jpeg')
+                except FileNotFoundError:
+                    pass
         self.send(404, {'error': 'not found'})
 
     def do_POST(self):
@@ -66,12 +68,32 @@ class H(BaseHTTPRequestHandler):
         if p == '/upload':
             if not body:
                 return self.send(400, {'error': 'empty'})
+            fridge = 'kind=fridge' in self.path
+            folder, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
             name = time.strftime('%Y%m%d-%H%M%S') + '.jpg'
-            open(f'{RECEIPTS}/{name}', 'wb').write(body)
+            open(f'{folder}/{name}', 'wb').write(body)
             with lock:
                 pending.add(name)
-            threading.Thread(target=run_intake, args=(f'{RECEIPTS}/{name}',), daemon=True).start()
+            threading.Thread(target=run_intake, args=(f'{folder}/{name}', script), daemon=True).start()
             return self.send(202, {'file': name})
+        if p.startswith('/api/proposal/'):  # /api/proposal/<id>/accept|reject
+            pid, action = (p[14:].split('/') + [''])[:2]
+            with lock:
+                props = load(f'{DATA}/proposals.json', [])
+                hit = next((x for x in props if x['id'] == pid), None)
+                if hit and action == 'accept':
+                    inv = load(f'{DATA}/inventory.json', [])
+                    if hit['kind'] == 'add':
+                        shelf = load_config()['categories'].get(hit['category'], [14, 30])[0]
+                        inv.append({'raw': '', 'name': hit['name'], 'qty': 1.0, 'unit': 'Stück', 'category': hit['category'],
+                                    'id': os.urandom(4).hex(), 'bought': time.strftime('%Y-%m-%d'),
+                                    'expires': time.strftime('%Y-%m-%d', time.localtime(time.time() + shelf * 86400)),
+                                    'receipt': hit.get('file', 'fridge')})
+                    else:
+                        inv = [i for i in inv if i['id'] != hit.get('item')]
+                    save_json(f'{DATA}/inventory.json', inv)
+                save_json(f'{DATA}/proposals.json', [x for x in props if x['id'] != pid])
+            return self.send(200, {'ok': bool(hit)})
         if p == '/api/profile':
             try:
                 d = json.loads(body)
@@ -123,5 +145,6 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.makedirs(RECEIPTS, exist_ok=True)
+    os.makedirs(FRIDGE, exist_ok=True)
     os.makedirs(DATA, exist_ok=True)
     ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', 8090))), H).serve_forever()

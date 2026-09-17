@@ -61,20 +61,32 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 
 ### 4a. Fridge / pantry photo → stock diff
 
-- [ ] Second camera button "Kühlschrank" → `POST /upload?kind=fridge` → `fridge/` (Syncthing folder exists)
-- [ ] E4B: "list every food item visible" → JSON names. Score recall on 10 real fridge photos before trusting it
-- [ ] Diff against stock: seen but not in stock → propose add; in stock (produce/dairy/meat) but not seen twice in a row → propose remove
-- [ ] Proposals land in PWA as a checklist, nothing changes stock without a tap. Occlusion and drawers make auto-apply wrong
+`server/fridge.py`, spawned by `POST /upload?kind=fridge`, cron every 5 min for Syncthing drops into `fridge/`.
+
+- [x] Second camera button 🧊 → `fridge/` → E4B "list every visible food item" → `[{name, category}]`
+- [x] Diff against stock: seen but not in stock → add proposal. Perishable in stock but unseen on 2 consecutive photos → remove proposal. Substring name match, no fuzzy lib
+- [x] Proposals in PWA with ✓ / ✕. Nothing touches stock without a tap. Accept-add uses category shelf days, qty 1 Stück
+- [ ] Score recall on 10 real fridge photos before trusting it. No real photo tested yet
 - [ ] Qwen3-VL-2B as second opinion if E4B recall is poor
 
 ### 4b. NPU / GPU on 8 Gen 1
 
 Termux is `untrusted_app`, vendor libs are out of reach. Three routes, in order of effort:
 
-- [ ] adb self-connect: `pkg install android-tools`, wireless debugging, pair once, `adb shell` = shell uid with vendor namespace. Push `build-ocl` to `/data/local/tmp`, `LD_LIBRARY_PATH=/vendor/lib64` llama-bench. This is how upstream tests Adreno. Catch: wireless debugging is off after reboot, needs a tap
+- [ ] adb self-connect: `android-tools` installed, `adb mdns services` finds nothing → wireless debugging is off. Needs: Settings → Developer → Wireless debugging on, pair once, `adb shell` = shell uid with vendor namespace. Push `build-ocl` to `/data/local/tmp`, `LD_LIBRARY_PATH=/vendor/lib64` llama-bench. This is how upstream tests Adreno. Catch: wireless debugging is off after reboot, needs a tap
 - [ ] Hexagon via same route: upstream HTP libs are v73+, Gen 1 is v69. Check zhouwg/ggml-hexagon fork (claims Gen 1) once source is public. Likely no
 - [ ] LiteRT + QNN delegate lists SM8450. Needs an APK: minimal Android app hosting LiteRT-LM (Gemma E2B `.litertlm` exists for Qualcomm) or a YOLO QNN export, exposing HTTP on localhost for Termux. Only worth it if 4a is too slow on CPU
 - Reality check: CPU does a receipt in 90 s, a fridge photo similar, suggestions in 90 s. Nothing here needs to be faster for a cron loop. NPU is curiosity, not need
+
+## 5. HTTPS + web push, drop ntfy
+
+Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the LAN.
+
+- [ ] Tailscale: `pkg install tailscale` in Termux (userspace networking), `tailscale up`, `tailscale cert` / `tailscale serve --bg 8090` → `https://poco.<tailnet>.ts.net`. Daily driver: Tailscale app. Login on Poco is an auth URL the user opens once
+- [ ] Service worker + manifest icons → real standalone install
+- [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
+- [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`
+- [ ] Then remove ntfy
 
 ## Later / maybe never
 

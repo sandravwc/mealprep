@@ -52,6 +52,7 @@ server/app.py            PWA + API, ThreadingHTTPServer, ~120 lines
 server/config.py         defaults for categories [shelf, grace] and taste tags, overrides in data/config.json
 server/intake.py         photo -> llama-server -> inventory.json, ntfy
 server/suggest.py        stock + history + profile -> 2 recipes -> suggestions.json, ntfy
+server/fridge.py         fridge photo -> seen items -> add/remove proposals, applied only on tap
 server/janitor.py        daily dedupe/junk pass, flags food past grace, never deletes food
 server/index.html        the whole UI, vanilla JS, German labels
 server/test_*.py         one assert-based check per script, run with python3
@@ -95,18 +96,27 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   something.
 - Food past its grace period is never deleted, only pushed as "entsorgen?".
 
-### 4. PWA (`app.py` + `index.html`)
+### 4. Fridge photo (`fridge.py`)
+
+- 🧊 button or Syncthing `fridge/` folder. Model lists visible items, script
+  diffs against stock: unseen-in-stock -> "add?", perishable stock unseen on two
+  photos in a row -> "remove?". Proposals sit in the PWA until tapped ✓ or ✕.
+  Occlusion makes auto-apply wrong, so nothing is automatic here.
+
+### 5. PWA (`app.py` + `index.html`)
 
 - Sections: Offen (unmade, last 2 days, "gekocht" button), Gekocht (date,
-  thumbs, last 7 days + "ältere"), Vorrat (tiers, "weg" button), Bons
+  thumbs, last 7 days + "ältere"), Kühlschrank-Vorschläge (✓ ✕), Vorrat
+  (tiers, "weg" button), Bons
   (collapsible per day, tap thumbnail for the photo).
 - Burger menu: taste toggles, free text, learned likes/dislikes, tag editor,
   category table (shelf and grace days). Saved to `data/profile.json` and
   `data/config.json`.
-- Camera button fixed at the bottom.
+- Two camera buttons fixed at the bottom: Bon, Kühlschrank.
 - Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`,
   `POST /api/rate/<id>/<up|down|none>`, `POST /api/remove/<id>`,
-  `POST /api/profile`, `POST /api/config`.
+  `POST /api/profile`, `POST /api/config`, `POST /upload?kind=fridge`,
+  `POST /api/proposal/<id>/<accept|reject>`.
 - Plain HTTP on the LAN, so "add to home screen" gives a bookmark, not a
   standalone install. Good enough.
 
@@ -156,6 +166,5 @@ REWE photos, recipes generated, pushes arriving. Now: daily use, tune
 - Weather in the prompt (open-meteo, one request).
 - Partial quantities on "gekocht" (2 of 10 eggs).
 - Action buttons on the ntfy push itself.
-- Fridge photo -> stock diff. Same model, second Syncthing folder already exists.
-- HTTPS via Tailscale for a real standalone PWA and web push, dropping ntfy.
+- HTTPS via Tailscale, then web push, then drop ntfy. Planned as phase 5.
 - NPU: only via an Android APK hosting LiteRT + QNN. Not from Termux.
