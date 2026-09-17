@@ -10,3 +10,10 @@ assert parse_items('Sorry, this image shows a cat, not a receipt.', {}) == []
 print('ok2')
 assert parse_items('[{"raw":"TRINKHALM","name":"Trinkhalm"},{"name":"Eier"}]', {'trinkhalm': ''}) == [{'raw': '', 'name': 'Eier', 'qty': 1.0, 'unit': 'Stück', 'category': 'other'}]
 print('ok3')
+from intake import status
+assert status({'expires': '2026-09-10', 'category': 'meat'}, '2026-09-11') == 'bad'
+assert status({'expires': '2026-09-10', 'category': 'dairy'}, '2026-09-12') == 'expired'
+assert status({'expires': '2026-09-10', 'category': 'dairy'}, '2026-09-14') == 'bad'
+assert status({'expires': '2026-09-12', 'category': 'pantry'}, '2026-09-10') == 'soon'
+assert status({'expires': '2026-10-12', 'category': 'pantry'}, '2026-09-10') == 'ok'
+print('ok4')

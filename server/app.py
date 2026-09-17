@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """PWA + API. GET / (page), /api/state, /receipts/<file>; POST /upload (raw image body), /api/remove/<id>."""
-import json, os, subprocess, threading, time
+import json, os, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from intake import status  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
 pending = set()  # files uploaded, intake not finished yet
@@ -52,7 +54,7 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, open(f'{HERE}/manifest.json', 'rb').read())
         if p == '/api/state':
             recs = load(f'{DATA}/receipts.json', [])
-            return self.send(200, {'inventory': load(f'{DATA}/inventory.json', []),
+            return self.send(200, {'inventory': [{**i, 'status': status(i)} for i in load(f'{DATA}/inventory.json', [])],
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending),
                                    'suggestions': load(f'{DATA}/suggestions.json', []),

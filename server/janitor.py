@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
-"""Daily sanity pass over data/*.json. Removes duplicates, junk, long-expired stock. Pushes a summary when it changed anything."""
-import time
-from intake import DATA, SHELF, load, save, notify
+"""Daily sanity pass over data/*.json. Removes duplicates and junk, never food. Flags items past their grace period. Pushes a summary when it changed anything."""
+from intake import DATA, SHELF, load, save, notify, status
 
-GRACE = 7  # days past expiry before an item is assumed gone
-
-
-def clean_inventory(inv, aliases, today):
+def clean_inventory(inv, aliases):
     seen, out, dropped = set(), [], []
     for i in inv:
         name = str(i.get('name', '')).strip()
         key = (i.get('receipt'), name.lower())
         if not name or aliases.get(name.lower()) == '' or aliases.get(str(i.get('raw', '')).lower()) == '':
             dropped.append(name or '?')
-        elif i.get('expires', '9') < today:
-            dropped.append(f'{name} (abgelaufen {i["expires"]})')
         elif key in seen:
             dropped.append(f'{name} (doppelt)')
         else:
@@ -36,8 +30,7 @@ def clean_suggestions(sug):
 
 
 if __name__ == '__main__':
-    cutoff = time.strftime('%Y-%m-%d', time.localtime(time.time() - GRACE * 86400))
-    inv, dropped = clean_inventory(load(f'{DATA}/inventory.json', []), load(f'{DATA}/aliases.json', {}), cutoff)
+    inv, dropped = clean_inventory(load(f'{DATA}/inventory.json', []), load(f'{DATA}/aliases.json', {}))
     sug, dup = clean_suggestions(load(f'{DATA}/suggestions.json', []))
     if dropped or dup:
         save(f'{DATA}/inventory.json', inv)
@@ -45,3 +38,6 @@ if __name__ == '__main__':
         msg = ', '.join(dropped) + (f' · {dup} doppelte Rezepte' if dup else '')
         print(msg)
         notify(f'Janitor: {len(dropped) + dup} entfernt', msg[:400])
+    bad = [i['name'] for i in inv if status(i) == 'bad']
+    if bad:  # never auto-remove food, just say it
+        notify(f'{len(bad)} x entsorgen?', ', '.join(bad)[:400])

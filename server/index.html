@@ -7,7 +7,7 @@ body>details>summary{font-size:15px;color:#999;text-transform:uppercase;margin-t
 label.cam{display:block;background:#2a6;color:#fff;text-align:center;padding:18px;border-radius:12px;font-size:20px}
 input[type=file]{display:none}
 ul{list-style:none;padding:0;margin:0}li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #222}
-li span{flex:1}small{color:#888}.soon small{color:#e94}.gone small{color:#e44}
+li span{flex:1}small{color:#888}.soon small{color:#e94}.gone small{color:#e44}.gone span{color:#e44}
 button{background:#333;color:#eee;border:0;border-radius:8px;padding:8px 12px}button.on{background:#2a6}
 textarea{width:100%;box-sizing:border-box;background:#222;color:#eee;border:0;border-radius:8px;padding:8px;font:inherit;margin:6px 0}
 .date{color:#fc6;font-weight:600}
@@ -20,7 +20,7 @@ dialog{border:0;background:#000;padding:0;max-width:100vw;max-height:100vh}dialo
 <details open><summary>Offen</summary><ul id="open"></ul></details>
 <details open><summary>Gekocht</summary><ul id="done"></ul><button id="more" onclick="allSug=1;load()">ältere</button></details>
 <details><summary>Geschmack</summary><textarea id="prof" rows="4" placeholder="z.B. mag scharf, kein Koriander, unter der Woche schnell"></textarea><button onclick="saveProf()">speichern</button></details>
-<details open><summary>Vorrat<small id="invn"></small></summary><ul id="inv"></ul></details>
+<details open><summary>Vorrat<small id="invn"></small></summary><div id="inv"></div></details>
 <h2>Bons</h2><div id="rec"></div>
 <dialog id="dlg" onclick="this.close()"><img id="big" alt=""></dialog>
 <script>
@@ -44,8 +44,10 @@ async function load(){const s=await (await fetch('/api/state')).json();const tod
  $('more').hidden=allSug||done.length==s.suggestions.filter(x=>x.made).length;
  if(document.activeElement!==$('prof'))$('prof').value=s.profile||'';
  $('invn').textContent=s.inventory.length;
- $('inv').innerHTML=s.inventory.sort((a,b)=>a.expires<b.expires?-1:1).map(i=>{const d=(new Date(i.expires)-new Date(today))/864e5;
-  return `<li class="${d<0?'gone':d<3?'soon':''}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${i.expires}</small></span><button onclick="rm('${i.id}')">weg</button></li>`}).join('')||'<li><small>leer</small></li>';
+ const tier={bad:'Verdorben?',expired:'Abgelaufen, noch ok',soon:'Bald',ok:'Vorrat'},cls={bad:'gone',expired:'soon',soon:'soon',ok:''};
+ const row=i=>`<li class="${cls[i.status]}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${i.expires}</small></span><button onclick="rm('${i.id}')">weg</button></li>`;
+ $('inv').innerHTML=['bad','expired','soon','ok'].map(t=>{const l=s.inventory.filter(i=>i.status==t).sort((a,b)=>a.expires<b.expires?-1:1);
+  return l.length?`<h2>${tier[t]} <small>${l.length}</small></h2><ul>${l.map(row).join('')}</ul>`:''}).join('')||'<small>leer</small>';
  const open=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
  const days={};for(const r of s.receipts)(days[r.time]??=[]).push(r);
  $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${open.has(d)||(n==0&&!open.size)?'open':''}><summary>${d}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${

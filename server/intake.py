@@ -11,7 +11,21 @@ except FileNotFoundError:
     pass
 LLM = ENV.get('LLM_URL', 'http://127.0.0.1:8080/v1/chat/completions')
 SHELF = {'dairy': 7, 'meat': 3, 'fish': 2, 'produce': 7, 'bread': 4, 'eggs': 21,
-         'pantry': 180, 'frozen': 90, 'drinks': 180, 'other': 14}  # days
+         'pantry': 180, 'frozen': 90, 'drinks': 180, 'other': 14}  # days from purchase to "expires"
+GRACE = {'dairy': 3, 'meat': 0, 'fish': 0, 'produce': 4, 'bread': 3, 'eggs': 14,
+         'pantry': 365, 'frozen': 180, 'drinks': 365, 'other': 30}  # days past "expires" still fine to eat
+SOON = 3  # days before "expires" counts as soon
+
+
+def status(item, today=None):
+    """ok | soon | expired (past date, still fine, use first) | bad (past grace, do not eat)."""
+    today = today or time.strftime('%Y-%m-%d')
+    exp = item.get('expires', '9999')
+    if exp < today:
+        left = (time.mktime(time.strptime(exp, '%Y-%m-%d')) - time.mktime(time.strptime(today, '%Y-%m-%d'))) / 86400
+        return 'bad' if -left > GRACE.get(item.get('category'), 0) else 'expired'
+    soon = time.strftime('%Y-%m-%d', time.localtime(time.mktime(time.strptime(today, '%Y-%m-%d')) + SOON * 86400))
+    return 'soon' if exp <= soon else 'ok'
 PROMPT = ('German supermarket receipt. Return a JSON array, one object per purchased line, keys: '
           'raw (the line exactly as printed), name (readable German product name as on the package, expand every '
           'abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
@@ -97,7 +111,8 @@ def notify(title, msg):
 
 if __name__ == '__main__':
     os.makedirs(DATA, exist_ok=True)
-    fcntl.flock(open(f'{DATA}/.lock', 'w'), fcntl.LOCK_EX)  # ponytail: one intake at a time, fine for one household
+    _lock = open(f'{DATA}/.lock', 'w')  # handle must stay referenced, else GC closes it and drops the lock
+    fcntl.flock(_lock, fcntl.LOCK_EX)  # ponytail: one intake at a time, fine for one household
     args = sys.argv[1:]
     if args and args[0] == '--redo':  # drop old records for the given files, then read them again
         names = {os.path.basename(a) for a in args[1:]}
