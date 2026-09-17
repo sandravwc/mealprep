@@ -42,7 +42,8 @@ class H(BaseHTTPRequestHandler):
             recs = load(f'{DATA}/receipts.json', [])
             return self.send(200, {'inventory': load(f'{DATA}/inventory.json', []),
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
-                                   'pending': sorted(pending)})
+                                   'pending': sorted(pending),
+                                   'suggestions': load(f'{DATA}/suggestions.json', [])})
         if p.startswith('/receipts/') and '..' not in p:
             try:
                 return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
