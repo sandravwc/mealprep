@@ -64,6 +64,7 @@ async function saveProf(){const tags=[...document.querySelectorAll('#tags input:
  await fetch('/api/profile',{method:'POST',body:JSON.stringify({tags,text:$('prof').value})});$('msg').textContent='Profil gespeichert';load()}
 async function prop(id,a){await fetch('/api/proposal/'+id+'/'+a,{method:'POST'});load()}
 async function made(id){await fetch('/api/made/'+id,{method:'POST'});await load();$('msg').textContent='Gekocht. Teller-Foto? 📷 neben dem Rezept, optional'}
+async function unmade(id){await fetch('/api/unmade/'+id,{method:'POST'});await load();$('msg').textContent='Zurück auf offen, Zutaten wieder im Vorrat'}
 async function upDish(id,f){if(!f)return;await fetch('/upload?kind=dish&id='+id,{method:'POST',body:f});load()}
 async function rm(id){await fetch('/api/remove/'+id,{method:'POST'});load()}
 async function load(){const s=await (await fetch('/api/state')).json();S=s;const today=new Date().toISOString().slice(0,10);
@@ -76,7 +77,7 @@ async function load(){const s=await (await fetch('/api/state')).json();S=s;const
  const earlier=x=>s.suggestions.find(y=>y.photo&&y.title.toLowerCase()==x.title.toLowerCase());
  $('open').innerHTML=open.map(x=>`<li>${earlier(x)?pic(earlier(x)):''}${item(x)}<button onclick="made('${x.id}')">gekocht</button></li>`).join('')||'<li><small>nichts offen, nächster Vorschlag 17:00</small></li>';
  const done=s.suggestions.filter(x=>x.made&&(allSug||x.time>=week)).reverse();
- $('done').innerHTML=done.map(x=>`<li>${x.photo?pic(x):`<label class="snap">📷<input type="file" accept="image/*" capture="environment" onchange="upDish('${x.id}',this.files[0])"></label>`}${item(x)}<button class="${x.rating=='up'?'on':''}" onclick="rate('${x.id}','${x.rating=='up'?'none':'up'}')">👍</button><button class="${x.rating=='down'?'on':''}" onclick="rate('${x.id}','${x.rating=='down'?'none':'down'}')">👎</button></li>`).join('')||'<li><small>noch nichts gekocht</small></li>';
+ $('done').innerHTML=done.map(x=>`<li>${x.photo?pic(x):`<label class="snap">📷<input type="file" accept="image/*" capture="environment" onchange="upDish('${x.id}',this.files[0])"></label>`}${item(x)}<button class="${x.rating=='up'?'on':''}" onclick="rate('${x.id}','${x.rating=='up'?'none':'up'}')">👍</button><button onclick="unmade('${x.id}')" title="doch nicht gekocht">↩</button><button class="${x.rating=='down'?'on':''}" onclick="rate('${x.id}','${x.rating=='down'?'none':'down'}')">👎</button></li>`).join('')||'<li><small>noch nichts gekocht</small></li>';
  $('more').hidden=allSug||done.length==s.suggestions.filter(x=>x.made).length;
  S=s;
  const pr=s.proposals||[];$('propbox').hidden=!pr.length;$('propn').textContent=pr.length;

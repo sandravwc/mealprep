@@ -129,19 +129,30 @@ class H(BaseHTTPRequestHandler):
                         s['rating'] = val if val in ('up', 'down') else None
                 save_json(f'{DATA}/suggestions.json', sug)
             return self.send(200, {'ok': True})
-        if p.startswith('/api/made/'):  # mark cooked, drop used ingredients from stock
+        if p.startswith('/api/made/'):  # mark cooked, drop used ingredients from stock, remember them for undo
             with lock:
                 sug = load(f'{DATA}/suggestions.json', [])
-                used = {u.lower() for s in sug if s['id'] == p[10:] for u in s['uses']}
-                for s in sug:
-                    if s['id'] == p[10:]:
-                        s['made'] = True
-                json.dump(sug, open(f'{DATA}/suggestions.json.tmp', 'w'), ensure_ascii=False, indent=1)
-                os.replace(f'{DATA}/suggestions.json.tmp', f'{DATA}/suggestions.json')
-                inv = [i for i in load(f'{DATA}/inventory.json', []) if i['name'].lower() not in used]
-                json.dump(inv, open(f'{DATA}/inventory.json.tmp', 'w'), ensure_ascii=False, indent=1)
-                os.replace(f'{DATA}/inventory.json.tmp', f'{DATA}/inventory.json')
-            return self.send(200, {'ok': True})
+                hit = next((x for x in sug if x['id'] == p[10:]), None)
+                if hit and not hit.get('made'):
+                    used = {u.lower() for u in hit['uses']}
+                    inv = load(f'{DATA}/inventory.json', [])
+                    hit['removed'] = [i for i in inv if i['name'].lower() in used]
+                    hit['made'] = True
+                    save_json(f'{DATA}/inventory.json', [i for i in inv if i['name'].lower() not in used])
+                    save_json(f'{DATA}/suggestions.json', sug)
+            return self.send(200, {'ok': bool(hit)})
+        if p.startswith('/api/unmade/'):  # misclick: back to open, ingredients back to stock
+            with lock:
+                sug = load(f'{DATA}/suggestions.json', [])
+                hit = next((x for x in sug if x['id'] == p[12:]), None)
+                if hit and hit.get('made'):
+                    inv = load(f'{DATA}/inventory.json', [])
+                    have = {i['id'] for i in inv}
+                    inv += [i for i in hit.pop('removed', []) if i['id'] not in have]
+                    hit['made'] = False
+                    save_json(f'{DATA}/inventory.json', inv)
+                    save_json(f'{DATA}/suggestions.json', sug)
+            return self.send(200, {'ok': bool(hit)})
         if p.startswith('/api/remove/'):
             with lock:
                 inv = load(f'{DATA}/inventory.json', [])

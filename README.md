@@ -126,7 +126,7 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   meal schedule, category table (shelf and grace days). Saved to `data/profile.json` and
   `data/config.json`.
 - Two camera buttons fixed at the bottom: Bon, Kühlschrank.
-- Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`,
+- Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`, `POST /api/unmade/<id>` (undo, restores the removed stock),
   `POST /api/rate/<id>/<up|down|none>`, `POST /api/remove/<id>`,
   `POST /api/profile`, `POST /api/config`, `POST /upload?kind=fridge`,
   `POST /api/proposal/<id>/<accept|reject>`, `POST /upload?kind=dish&id=<id>`.
