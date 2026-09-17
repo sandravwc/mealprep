@@ -16,6 +16,6 @@
 - Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`
 - Suggest manually: `python3 ~/mealprep/repo/server/suggest.py`. Cron 17:00 daily
 - Mock stock was added 2026-09-17 with `receipt: "mock"`, delete via "weg" or filter inventory.json
-- Cron: intake */5, fridge */5, janitor 16:50, suggest 17:00
+- Cron: intake */5, fridge */5, janitor 16:50, `suggest.py --due` */15 (meals and times from `data/config.json`)
 - Termux dead (ssh refused, phone pings): `adb shell am start -n com.termux/.HomeActivity`, services come back via profile.d. Reason: `adb shell dumpsys activity exit-info com.termux`
 - Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"

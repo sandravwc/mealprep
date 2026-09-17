@@ -43,6 +43,7 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - Stock in tiers: DRINGEND / BALD / rest / NICHT verwenden. Season from month. Weather from Open-Meteo when `WEATHER_PLACE` is set, skipped silently otherwise. Profile tags + text. Liked, disliked, cooked, skipped last 14 d
 - 2 dinners as JSON with `uses` naming stock items. One of the two changes exactly one axis
 - First run picked Lachs (expiring next day) and "neu: Curry-Gewürz". Rule works
+- [x] Meals configurable: name + time in ☰, cron `*/15 suggest.py --due`, one run per meal per day, prompt per meal type. Suggestions carry `meal`
 - [ ] ntfy action buttons on the push itself. Now: open PWA, tap gekocht
 
 ## 3. Consumption + PWA — done
@@ -65,6 +66,7 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - [x] Second camera button 🧊 → `fridge/` → E4B "list every visible food item" → `[{name, category}]`
 - [x] Diff against stock: seen but not in stock → add proposal. Perishable in stock but unseen on 2 consecutive photos → remove proposal. Substring name match, no fuzzy lib
 - [x] Proposals in PWA with ✓ / ✕. Nothing touches stock without a tap. Accept-add uses category shelf days, qty 1 Stück
+- [ ] Shelf location per photo ("oberes Fach", "Tür"). Tricky: the model would have to name it, or the user picks it before upload
 - [ ] Score recall on 10 real fridge photos before trusting it. No real photo tested yet
 - [ ] E4B recall on real photos is poor: top shelf 2 of ~8 readable products, pantry only generic groups. Prompt tightened, untested
 - [x] Qwen3-VL-2B tested on the 3 photos: with product examples in the prompt it parrots the examples, without them it loops one word ("Schnaps" x 200) until max_tokens. Rejected. Files stay in `models/` for a later retry with repeat penalty

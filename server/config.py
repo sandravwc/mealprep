@@ -12,6 +12,8 @@ DEFAULTS = {
              'deutsch': 'mag deutsche Hausmannskost', 'neues': 'probiert gern Neues', 'schnell': 'unter der Woche max 30 min',
              'reste': 'kocht gern vor / Reste', 'suess': 'mag süß', 'lowcarb': 'wenig Kohlenhydrate',
              'protein': 'viel Protein', 'glutenfrei': 'glutenfrei', 'laktosefrei': 'laktosefrei', 'koriander': 'kein Koriander'},
+    # one suggestion run per meal per day, cron checks every 15 min what is due
+    'meals': [{'name': 'Abendessen', 'time': '17:00'}],
 }
 
 
@@ -20,6 +22,7 @@ def load_config():
         cfg = json.load(open(f'{DATA}/config.json'))
     except (FileNotFoundError, ValueError):
         return json.loads(json.dumps(DEFAULTS))
+    cfg.setdefault('meals', DEFAULTS['meals'])  # configs saved before meals existed
     return clean(cfg)
 
 
@@ -36,7 +39,12 @@ def clean(cfg):
             cats[name] = [shelf, grace]
     cats.setdefault('other', DEFAULTS['categories']['other'])
     tags = {str(k).strip(): str(v).strip() for k, v in (cfg.get('tags') or {}).items() if str(k).strip() and str(v).strip()}
-    return {'categories': cats, 'tags': tags}
+    meals = []
+    for m in cfg.get('meals') or []:
+        name, t = str(m.get('name', '')).strip(), str(m.get('time', '')).strip()
+        if name and len(t) == 5 and t[2] == ':' and t[:2].isdigit() and t[3:].isdigit() and int(t[:2]) < 24 and int(t[3:]) < 60:
+            meals.append({'name': name, 'time': t})
+    return {'categories': cats, 'tags': tags, 'meals': meals or DEFAULTS['meals']}
 
 
 def save_config(cfg):

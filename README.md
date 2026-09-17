@@ -85,14 +85,16 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 
 ### 2. Suggest (`suggest.py`)
 
-- Cron 17:00. Text-only prompt: stock in tiers (DRINGEND / BALD / rest /
+- Cron every 15 min runs `suggest.py --due`: each meal in the config (name +
+  time, default Abendessen 17:00, add Frühstück or Mittagessen in the PWA)
+  gets one run per day at its time. Text-only prompt per meal type: stock in tiers (DRINGEND / BALD / rest /
   NICHT verwenden), season from month, today's weather (Open-Meteo, no key,
   place from `.env`, cold and wet steers to soup and oven, hot to salad),
   taste profile, liked and disliked recipes, cooked and skipped in the last
   14 days.
 - Asks for 2 dinners as JSON with `uses` naming stock items exactly. One of
   the two must change exactly one axis: new technique or new spice, not both.
-- Push "Heute kochen?" with both titles, click opens the PWA.
+- Push "Abendessen?" with both titles, click opens the PWA.
 
 ### 3. Janitor (`janitor.py`)
 
@@ -115,10 +117,11 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 - Sections: Offen (unmade, last 2 days, "gekocht" button), Gekocht (date,
   thumbs, last 7 days + "ältere"), Schrank-Vorschläge (✓ ✕), Vorrat
   grouped by shelf stability (verdirbt schnell / hält eine Woche / einen
-  Monat / überlebt dich) with expiry tags per item, Bons
+  Monat / überlebt dich) with expiry tags per item, Bons (date only),
+  Schrank-Fotos (date and time, quality hint visible, items in a dropdown)
   (collapsible per day, tap thumbnail for the photo).
 - Burger menu: taste toggles, free text, learned likes/dislikes, tag editor,
-  category table (shelf and grace days). Saved to `data/profile.json` and
+  meal schedule, category table (shelf and grace days). Saved to `data/profile.json` and
   `data/config.json`.
 - Two camera buttons fixed at the bottom: Bon, Kühlschrank.
 - Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`,
