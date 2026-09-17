@@ -3,20 +3,21 @@
 Self-hosted meal loop on a phone. Receipt photo in, "cook this tonight" push
 out. Runs on a Poco F5 Pro (Snapdragon 8+ Gen 1, 8 GB + 4 GB swap) under Termux, all
 inference local via llama.cpp + Gemma 4 E4B. No cloud model, no account,
-no database. Three Python files and one HTML page.
+no database. Couple Python files and one HTML page. No React no nothing.
 
 ## Goal
 
-1. Shop. Open the page on your phone, tap the camera button, photograph the
-   receipt. Done, 1 tap + shutter.
+1. Shop. Open the page on your phone, tap the camera button, photograph receipt or groceries
+   Done, 1 tap + shutter.
 2. Server reads the photo with a vision model, expands REWE-speak
    ("JOGH. GRIE. ART." -> "Joghurt griechischer Art"), files each item with a
-   category and expiry date.
-3. 17:00 daily: push notification with two dinner ideas built from what is in
+   category and expiry date. 
+3. scheduled push notification with two dinner ideas built from what is in
    stock, soonest-expiring first, matching your taste profile, one of the two
    nudging you toward something new.
 4. Tap "gekocht": used ingredients leave the stock, recipe lands in history.
-   Thumbs up/down teaches the profile.
+   Thumbs up/down teaches the profile. 
+   Photo of dish can be taken and stored with recipe for future use after finished.
 
 ```
  daily driver phone                      poco f5 pro (termux, anywhere on LAN)
@@ -87,12 +88,12 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 ### 2. Suggest (`suggest.py`)
 
 - Cron every 15 min runs `suggest.py --due`: each meal in the config (name +
-  time, default Abendessen 17:00, add Frühstück or Mittagessen in the PWA)
+  time, default Abendessen 17:00, add Frühstück or Mittagessen in the PWA or any other meal)
   gets one run per day at its time. Text-only prompt per meal type: stock in tiers (DRINGEND / BALD / rest /
   NICHT verwenden), season from month, today's weather (Open-Meteo, no key,
   place from `.env`, cold and wet steers to soup and oven, hot to salad),
   taste profile, liked and disliked recipes, cooked and skipped in the last
-  14 days.
+  14 days. TODO: three months.
 - Asks for 2 dishes as JSON with an emoji, `uses` naming stock items exactly. One of
   the two must change exactly one axis: new technique or new spice, not both.
 - Push "Abendessen?" with both titles, click opens the PWA.
@@ -139,10 +140,10 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 `~/mealprep/.env` on the Poco, `KEY=VALUE` lines, never committed:
 
 ```
-NTFY_TOPIC=mealprep-<random>          required for pushes
-BASE_URL=http://192.168.1.106:8090    click target in pushes
-LLM_URL=http://127.0.0.1:8080/v1/chat/completions   default
-WEATHER_PLACE=Berlin                  optional, any town name, geocoded once
+NTFY_TOPIC=mealprep-<random>                           # required for pushes
+BASE_URL=http://192.168.1.106:8090                     # click target in pushes
+LLM_URL=http://127.0.0.1:8080/v1/chat/completions      # default
+WEATHER_PLACE=Berlin                                   # optional, any town name, geocoded once
 ```
 
 `PORT` (default 8090) and `TLS_PORT` (default 8443) env vars for `app.py`.
@@ -182,7 +183,7 @@ cd server && for t in test_*.py; do python3 $t; done
 
 ## Status
 
-Phases 0 to 3 built and running live (2026-09-17). Receipts parsed from real
+Phases 0 to 5 built and running live (2026-09-17). Receipts parsed from real
 REWE photos, recipes generated, pushes arriving. Now: daily use, tune
 `SHELF`/`GRACE`/prompt/aliases as reality disagrees.
 
@@ -190,5 +191,5 @@ REWE photos, recipes generated, pushes arriving. Now: daily use, tune
 
 - Partial quantities on "gekocht" (2 of 10 eggs).
 - Action buttons on the ntfy push itself.
-- Web push, then drop ntfy. Planned as phase 5.
+- Web push
 - NPU: only via an Android APK hosting LiteRT + QNN. Not from Termux.
