@@ -32,10 +32,13 @@ def clean_suggestions(sug):
 if __name__ == '__main__':
     inv, dropped = clean_inventory(load(f'{DATA}/inventory.json', []), load(f'{DATA}/aliases.json', {}))
     sug, dup = clean_suggestions(load(f'{DATA}/suggestions.json', []))
+    rec = list({r['file']: r for r in load(f'{DATA}/receipts.json', [])}.values())  # last record per file wins
+    dup += len(load(f'{DATA}/receipts.json', [])) - len(rec)
     if dropped or dup:
         save(f'{DATA}/inventory.json', inv)
         save(f'{DATA}/suggestions.json', sug)
-        msg = ', '.join(dropped) + (f' · {dup} doppelte Rezepte' if dup else '')
+        save(f'{DATA}/receipts.json', rec)
+        msg = ', '.join(dropped) + (f' · {dup} doppelte Einträge' if dup else '')
         print(msg)
         notify(f'Janitor: {len(dropped) + dup} entfernt', msg[:400])
     bad = [i['name'] for i in inv if status(i) == 'bad']
