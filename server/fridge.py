@@ -13,10 +13,10 @@ SESSION = 3600  # photos within an hour = one scan of the same kitchen
 
 def prompt():
     return ('Photo of a fridge shelf, fridge door or pantry shelf. List every food or drink product you can identify, in German, '
-            'as a JSON array of {name, category}. category one of ' + str(list(cats())) + '. Read labels and packaging: name '
-            'the specific product ("Deutsche Markenbutter", "Hummus", "Senf", "Sojadrink Barista", "Gouda"), never a group '
-            '("Gemüse", "Dosen", "Gläser", "Behälter", "Saucen", "Gewürze"). Skip containers whose contents you cannot see, '
-            'foil bundles and non-food objects. One entry per distinct product, no quantities. Output only JSON.')
+            'as a JSON array of {name, category}. category one of ' + str(list(cats())) + '. Read the labels: give the '
+            'specific product name printed on the packaging, brand included if readable. Never a generic group word. '
+            'Skip containers whose contents you cannot see, foil bundles and non-food objects. One entry per distinct '
+            'product, no quantities, no invented items. Output only JSON.')
 
 
 def ask_llm(img):
