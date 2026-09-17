@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Receipt photo -> inventory.json. Usage: intake.py [file ...]; no args = every unprocessed file in receipts/."""
+"""Receipt photo -> inventory.json. Usage: intake.py [--redo] [file ...]; no args = every unprocessed file in receipts/."""
 import base64, fcntl, json, os, sys, time, urllib.request, uuid
 
 HOME = os.path.expanduser('~/mealprep')
@@ -12,10 +12,13 @@ except FileNotFoundError:
 LLM = ENV.get('LLM_URL', 'http://127.0.0.1:8080/v1/chat/completions')
 SHELF = {'dairy': 7, 'meat': 3, 'fish': 2, 'produce': 7, 'bread': 4, 'eggs': 21,
          'pantry': 180, 'frozen': 90, 'drinks': 180, 'other': 14}  # days
-PROMPT = ('German supermarket receipt. Extract every purchased item as a JSON array of objects with keys: '
-          'name (full German product name, expand abbreviations: "H-MILCH"->"H-Milch", "BA BANANE"->"Banane", '
-          '"HACKFL. GEM."->"Hackfleisch gemischt"), qty (number), unit ("Stück","kg","g","l","ml","Packung"), '
-          f'category (one of {list(SHELF)}). Skip Pfand, discounts, totals, payment lines. Output only JSON.')
+PROMPT = ('German supermarket receipt. Return a JSON array, one object per purchased line, keys: '
+          'raw (the line exactly as printed), name (readable German product name as on the package, expand every '
+          'abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
+          '"WUERF. MILD&N."->"Käsewürfel mild & nussig", "MILCHSCHOKOSTR"->"Milchschokostreusel"; never leave uppercase '
+          'abbreviations), qty (number, use the "2 Stk x" line if present), unit ("Stück","kg","g","l","ml","Packung"), '
+          f'category (one of {list(SHELF)}). Skip anything not food or drink: bags, straws, Kassenkarton, Pfand, '
+          'discounts, totals, payment, tax lines. Tax letter A (19%) usually means non-food, B (7%) means food. Output only JSON.')
 
 
 def load(p, default):
@@ -57,7 +60,9 @@ def parse_items(text, aliases):
             qty = float(it.get('qty') or 1)
         except (TypeError, ValueError):
             qty = 1.0
-        out.append({'name': aliases.get(name.lower(), name), 'qty': qty,
+        raw = str(it.get('raw') or '').strip()
+        name = aliases.get(raw.lower()) or aliases.get(name.lower()) or name
+        out.append({'raw': raw, 'name': name, 'qty': qty,
                     'unit': str(it.get('unit') or 'Stück'), 'category': cat if cat in SHELF else 'other'})
     return out
 
@@ -91,8 +96,14 @@ def notify(title, msg):
 if __name__ == '__main__':
     os.makedirs(DATA, exist_ok=True)
     fcntl.flock(open(f'{DATA}/.lock', 'w'), fcntl.LOCK_EX)  # ponytail: one intake at a time, fine for one household
+    args = sys.argv[1:]
+    if args and args[0] == '--redo':  # drop old records for the given files, then read them again
+        names = {os.path.basename(a) for a in args[1:]}
+        save(f'{DATA}/receipts.json', [r for r in load(f'{DATA}/receipts.json', []) if r['file'] not in names])
+        save(f'{DATA}/inventory.json', [i for i in load(f'{DATA}/inventory.json', []) if i['receipt'] not in names])
+        args = args[1:]
     done = {r['file'] for r in load(f'{DATA}/receipts.json', [])}
-    files = sys.argv[1:] or sorted(
+    files = args or sorted(
         f'{RECEIPTS}/{f}' for f in os.listdir(RECEIPTS)
         if not f.startswith('.') and f not in done and os.path.isfile(f'{RECEIPTS}/{f}')
         and time.time() - os.path.getmtime(f'{RECEIPTS}/{f}') > 10)  # skip files still syncing
