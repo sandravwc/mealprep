@@ -2,15 +2,31 @@
 
 Order = priority. Each phase ships something usable before the next starts.
 
+## Use pattern (decided 2026-09-17)
+
+Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no custom app.
+1. Home-screen shortcut / NFC tag → camera app saving into a Syncthing-shared folder. One tap + shutter.
+2. Poco picks up photo, runs model, pushes result to daily driver via ntfy (ntfy.sh topic for v1, self-host later).
+3. ntfy action buttons "made it" / "skip" → HTTP back to Poco → inventory update.
+4. Fridge photo = same path, second folder.
+
 ## 0. Server bring-up (Poco F5 Pro, Termux)
 
-- [ ] Termux + termux-api + termux-services, sshd, keep-alive (wakelock, battery optimization off)
-- [ ] Verify Android background killer does not kill sshd/cron over 48 h
-- [ ] Build llama.cpp in Termux, CPU first. Try `-DGGML_OPENCL=ON` (Adreno 730 unverified upstream, cheap to test, fall back to CPU)
-- [ ] Gemma 4 E4B Q4_K_M + mmproj via `llama-server`, measure tok/s and throttling after 5 min. Expect ~5-8 tok/s (Gen 3 does 12-20)
-- [ ] Cron job fires `termux-notification` on schedule (proves push path works)
-- [ ] Syncthing on server + daily-driver phone, shared `receipts/` folder. Server = no camera, stays in place
-- [ ] inotify/poll `receipts/` → trigger intake job
+Hardware reality: 12 GB variant (11 GB usable), Android 15, Termux sshd already up for days.
+
+- [x] Termux + termux-api + termux-services, sshd, Termux:Boot wake-lock. Already there
+- [x] `~/.termux/boot/10-services.sh` starts runsvdir so services survive reboot
+- [x] crond service enabled
+- [x] syncthing service enabled, GUI :8384, folders `mealprep-receipts` + `mealprep-fridge`. Device ID in `docs/server.md`
+- [x] llama.cpp CPU build: `~/mealprep/llama.cpp/build-cpu/bin/{llama-server,llama-bench,llama-mtmd-cli}`
+- [ ] llama.cpp OpenCL build in `build-ocl`, does Adreno 730 load at all
+- [x] Models in `~/mealprep/models`: gemma-4-E4B-it-Q4_0 (4.6 GB), mmproj Q8_0, PaddleOCR-VL-1.6 + mmproj
+- [ ] `llama-bench` E4B CPU: pp/tg tok/s, cpuss temp before/after
+- [x] `termux-notification` works (but pops on Poco only, hence ntfy)
+- [ ] Daily driver: Syncthing app, pair with Poco, share both folders. Camera app with save-folder setting (Open Camera) + home shortcut
+- [ ] ntfy app on daily driver, pick topic, test `curl -d test ntfy.sh/<topic>` from Poco
+- [ ] Verify sshd/syncthing/crond survive a reboot
+- [ ] Poll `receipts/` from cron every minute → trigger intake job (phase 1)
 
 ## 0b. Model eval (before writing intake code)
 
