@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Receipt photo -> inventory.json. Usage: intake.py [--redo] [file ...]; no args = every unprocessed file in receipts/."""
+"""Receipt photo -> inventory.json. data/aliases.json: {"raw line or name, lowercase": "canonical name" | "" to drop}. Usage: intake.py [--redo] [file ...]; no args = every unprocessed file in receipts/."""
 import base64, fcntl, json, os, sys, time, urllib.request, uuid
 
 HOME = os.path.expanduser('~/mealprep')
@@ -61,7 +61,9 @@ def parse_items(text, aliases):
         except (TypeError, ValueError):
             qty = 1.0
         raw = str(it.get('raw') or '').strip()
-        name = aliases.get(raw.lower()) or aliases.get(name.lower()) or name
+        name = aliases.get(raw.lower(), aliases.get(name.lower(), name))
+        if not name:
+            continue  # alias "" = drop, e.g. bags and straws the model keeps listing
         out.append({'raw': raw, 'name': name, 'qty': qty,
                     'unit': str(it.get('unit') or 'Stück'), 'category': cat if cat in SHELF else 'other'})
     return out
@@ -103,6 +105,7 @@ if __name__ == '__main__':
         save(f'{DATA}/inventory.json', [i for i in load(f'{DATA}/inventory.json', []) if i['receipt'] not in names])
         args = args[1:]
     done = {r['file'] for r in load(f'{DATA}/receipts.json', [])}
+    args = [a for a in args if os.path.basename(a) not in done]  # upload thread may queue behind a cron run
     files = args or sorted(
         f'{RECEIPTS}/{f}' for f in os.listdir(RECEIPTS)
         if not f.startswith('.') and f not in done and os.path.isfile(f'{RECEIPTS}/{f}')

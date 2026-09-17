@@ -8,3 +8,5 @@ assert items[1]['qty'] == 2.0 and items[1]['category'] == 'other'     # unknown 
 print('ok')
 assert parse_items('Sorry, this image shows a cat, not a receipt.', {}) == []
 print('ok2')
+assert parse_items('[{"raw":"TRINKHALM","name":"Trinkhalm"},{"name":"Eier"}]', {'trinkhalm': ''}) == [{'raw': '', 'name': 'Eier', 'qty': 1.0, 'unit': 'Stück', 'category': 'other'}]
+print('ok3')
