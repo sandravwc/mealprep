@@ -58,10 +58,10 @@ class H(BaseHTTPRequestHandler):
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
                                    'profile': load_profile(), 'config': load_config(),
                                    'proposals': load(f'{DATA}/proposals.json', [])})
-        for prefix, folder in (('/receipts/', RECEIPTS), ('/fridge/', FRIDGE)):
+        for prefix, directory in (('/receipts/', RECEIPTS), ('/fridge/', FRIDGE)):
             if p.startswith(prefix) and '..' not in p:
                 try:
-                    return self.send(200, open(f'{folder}/{p[len(prefix):]}', 'rb').read(), 'image/jpeg')
+                    return self.send(200, open(f'{directory}/{p[len(prefix):]}', 'rb').read(), 'image/jpeg')
                 except FileNotFoundError:
                     pass
         self.send(404, {'error': 'not found'})
@@ -73,10 +73,10 @@ class H(BaseHTTPRequestHandler):
             if not body:
                 return self.send(400, {'error': 'empty'})
             fridge = 'kind=fridge' in self.path
-            folder, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
+            directory, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
             name = time.strftime('%Y%m%d-%H%M%S') + '-' + os.urandom(2).hex() + '.jpg'  # two uploads in one second must not collide
-            open(f'{folder}/{name}', 'wb').write(body)
-            threading.Thread(target=run_intake, args=(f'{folder}/{name}', script), daemon=True).start()
+            open(f'{directory}/{name}', 'wb').write(body)
+            threading.Thread(target=run_intake, args=(f'{directory}/{name}', script), daemon=True).start()
             return self.send(202, {'file': name})
         if p.startswith('/api/proposal/'):  # /api/proposal/<id>/accept|reject
             pid, action = (p[14:].split('/') + [''])[:2]

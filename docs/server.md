@@ -3,7 +3,7 @@
 - Termux sshd :8022, proot Debian sshd :8122 (unrelated, Shoko)
 - Services: `export SVDIR=$PREFIX/var/service` first in non-login shells, then `sv status ...`
 - Syncthing GUI: http://<poco>:8384, device ID `TQ66ARI-ELDGF2D-Q4WLRPI-4MCQXJD-NOD43KZ-HOF2QAS-HUUJBDW-IUFAOQT`
-- Folders: `~/mealprep/receipts` (id mealprep-receipts), `~/mealprep/fridge` (id mealprep-fridge)
+- Directories: `~/mealprep/receipts`, `~/mealprep/fridge` (Syncthing disabled, uploads go over HTTP)
 - llama.cpp: `~/mealprep/llama.cpp/build-cpu/bin`, models in `~/mealprep/models`
 - CPU thermal zones: `/sys/class/thermal/thermal_zone19..22` = cpuss-0..3, millidegrees
 - LLM is started per job by `intake.llm()` (15 s load) and stopped after. No resident llama service anymore, HyperOS killed Termux twice for the 5 GB baseline

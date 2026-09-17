@@ -157,7 +157,7 @@ Then one runit service (`mealprep`) and four cron lines, exact contents in
 nothing holds 5 GB while idle. Deploy = `git pull && sv restart mealprep`.
 
 Daily driver: open `http://<poco>:8090`, add to home screen, install ntfy,
-subscribe to the topic. Optional: Syncthing-Fork sharing `receipts/`.
+subscribe to the topic. 
 
 ## Test
 
