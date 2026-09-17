@@ -130,8 +130,9 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   `POST /api/rate/<id>/<up|down|none>`, `POST /api/remove/<id>`,
   `POST /api/profile`, `POST /api/config`, `POST /upload?kind=fridge`,
   `POST /api/proposal/<id>/<accept|reject>`, `POST /upload?kind=dish&id=<id>`.
-- Plain HTTP on the LAN, so "add to home screen" gives a bookmark, not a
-  standalone install. Good enough.
+- HTTPS on 8443 when `~/mealprep/tls/{fullchain,key}.pem` exist (Let's
+  Encrypt via acme.sh DNS-01, AutoDNS), plain HTTP on 8090 stays for the LAN.
+  With HTTPS the PWA installs standalone and web push becomes possible.
 
 ## Config
 
@@ -144,7 +145,15 @@ LLM_URL=http://127.0.0.1:8080/v1/chat/completions   default
 WEATHER_PLACE=Berlin                  optional, any town name, geocoded once
 ```
 
-`PORT` env var for `app.py` (default 8090).
+`PORT` (default 8090) and `TLS_PORT` (default 8443) env vars for `app.py`.
+
+Certificate, once, on the Poco (`AUTODNS_USER/PASSWORD/CONTEXT` in the environment):
+
+```sh
+~/.acme.sh/acme.sh --issue --dns dns_autodns -d poco.xn--bdk.dog
+~/.acme.sh/acme.sh --install-cert -d poco.xn--bdk.dog --fullchain-file ~/mealprep/tls/fullchain.pem --key-file ~/mealprep/tls/key.pem --reloadcmd "SVDIR=$PREFIX/var/service sv restart mealprep"
+```
+acme.sh renews from its own cron line and restarts the app.
 
 ## Install on the Poco
 
@@ -180,5 +189,5 @@ REWE photos, recipes generated, pushes arriving. Now: daily use, tune
 
 - Partial quantities on "gekocht" (2 of 10 eggs).
 - Action buttons on the ntfy push itself.
-- HTTPS via Tailscale, then web push, then drop ntfy. Planned as phase 5.
+- Web push, then drop ntfy. Planned as phase 5.
 - NPU: only via an Android APK hosting LiteRT + QNN. Not from Termux.

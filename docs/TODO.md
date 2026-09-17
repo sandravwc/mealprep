@@ -97,7 +97,9 @@ SoC is SM8475 = 8+ Gen 1 (TSMC), not 8 Gen 1. Same Hexagon v69, same Adreno 730.
 
 Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the LAN.
 
-- [ ] Tailscale: `pkg install tailscale` in Termux (userspace networking), `tailscale up`, `tailscale cert` / `tailscale serve --bg 8090` → `https://poco.<tailnet>.ts.net`. Daily driver: Tailscale app. Login on Poco is an auth URL the user opens once
+- [x] Tailscale tried and dropped: built from upstream source with Termux's Go (its stdlib patch bypasses Android's netlink block, plus omit tags and the android exclusion removed from acme/cert), daemon ran clean in userspace mode. Dropped because the daily driver would need the Tailscale app forever. Binaries stay in `~/.tailscale`, service disabled
+- [x] acme.sh installed on the Poco, `dns_autodns` module. `app.py` serves TLS on 8443 from `~/mealprep/tls/` when present, HTTP 8090 stays
+- [ ] Issue cert for `poco.xn--bdk.dog` (needs AutoDNS credentials in the environment), A record → 192.168.1.106
 - [ ] Service worker + manifest icons → real standalone install
 - [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
 - [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PWA + API. GET / (page), /api/state, /receipts/<file>; POST /upload (raw image body), /api/remove/<id>."""
-import json, os, subprocess, sys, threading, time
+import json, os, ssl, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -167,9 +167,20 @@ class H(BaseHTTPRequestHandler):
             super().log_message(fmt, *a)
 
 
+def serve(port, tls=None):
+    srv = ThreadingHTTPServer(('0.0.0.0', port), H)
+    if tls:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(f'{tls}/fullchain.pem', f'{tls}/key.pem')
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+    srv.serve_forever()
+
+
 if __name__ == '__main__':
     os.makedirs(RECEIPTS, exist_ok=True)
     os.makedirs(FRIDGE, exist_ok=True)
     os.makedirs(DISHES, exist_ok=True)
-    os.makedirs(DATA, exist_ok=True)
-    ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', 8090))), H).serve_forever()
+    tls = f'{HOME}/tls'
+    if os.path.exists(f'{tls}/fullchain.pem'):  # acme.sh installs here and restarts us on renewal
+        threading.Thread(target=serve, args=(int(os.environ.get('TLS_PORT', 8443)), tls), daemon=True).start()
+    serve(int(os.environ.get('PORT', 8090)))  # plain HTTP stays for the LAN and as fallback

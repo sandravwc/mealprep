@@ -19,3 +19,5 @@
 - Cron: intake */5, fridge */5, janitor 16:50, `suggest.py --due` */15 (meals and times from `data/config.json`)
 - Termux dead (ssh refused, phone pings): `adb shell am start -n com.termux/.HomeActivity`, services come back via profile.d. Reason: `adb shell dumpsys activity exit-info com.termux`
 - Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"
+- TLS: `~/mealprep/tls/{fullchain,key}.pem` from acme.sh, app listens 8443 when present. Renewal restarts `mealprep` via reloadcmd
+- Tailscale (disabled): `~/.tailscale/{tailscale,tailscaled}`, runit service `tailscaled`, build tags in `~/.tailscale/build-tags`, source `~/tailscale-src`
