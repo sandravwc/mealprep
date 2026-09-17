@@ -5,3 +5,5 @@ assert [i['name'] for i in items] == ['Banane', 'H-Milch'], items
 assert items[0]['qty'] == 1.0 and items[0]['category'] == 'produce'   # "0,8" unparsable -> 1
 assert items[1]['qty'] == 2.0 and items[1]['category'] == 'other'     # unknown category -> other
 print('ok')
+assert parse_items('Sorry, this image shows a cat, not a receipt.', {}) == []
+print('ok2')

@@ -45,7 +45,10 @@ def ask_llm(img):
 def parse_items(text, aliases):
     """Model text -> clean item dicts. Tolerates code fences, junk fields, bad numbers."""
     out = []
-    for it in json.loads(text[text.find('['):text.rfind(']') + 1]):
+    a, b = text.find('['), text.rfind(']')
+    if a < 0 or b < a:
+        return out  # no array = model says this is not a receipt
+    for it in json.loads(text[a:b + 1]):
         name = str(it.get('name', '')).strip()
         if not name:
             continue
@@ -96,7 +99,11 @@ if __name__ == '__main__':
     for f in files:
         try:
             items = intake(f)
-            notify(f'{len(items)} items added', ', '.join(i['name'] for i in items) or 'nothing recognised')
-        except Exception as e:  # one bad photo must not block the rest
+        except Exception as e:  # LLM down or unparsable: log, retry on next cron run
             print(f'{f}: {e}', file=sys.stderr)
-            notify('receipt failed', f'{os.path.basename(f)}: {e}')
+            notify('receipt failed, will retry', f'{os.path.basename(f)}: {e}')
+            continue
+        if items:
+            notify(f'{len(items)} items added', ', '.join(i['name'] for i in items))
+        else:
+            notify('no receipt found', load(f'{DATA}/receipts.json', [])[-1]['raw'][:200])
