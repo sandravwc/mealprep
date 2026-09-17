@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""PWA + API. GET / (page), /api/state, /receipts/<file>; POST /upload (raw image body), /api/remove/<id>."""
+import json, os, subprocess, threading, time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+HOME = os.path.expanduser('~/mealprep')
+RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
+pending = set()  # files uploaded, intake not finished yet
+lock = threading.Lock()
+
+
+def load(p, default):
+    try:
+        return json.load(open(p))
+    except FileNotFoundError:
+        return default
+
+
+def run_intake(path):
+    subprocess.run(['python3', f'{HERE}/intake.py', path])
+    with lock:
+        pending.discard(os.path.basename(path))
+
+
+class H(BaseHTTPRequestHandler):
+    def send(self, code, body, ctype='application/json'):
+        body = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        p = self.path.split('?')[0]
+        if p == '/':
+            return self.send(200, open(f'{HERE}/index.html', 'rb').read(), 'text/html; charset=utf-8')
+        if p == '/manifest.json':
+            return self.send(200, open(f'{HERE}/manifest.json', 'rb').read())
+        if p == '/api/state':
+            recs = load(f'{DATA}/receipts.json', [])
+            return self.send(200, {'inventory': load(f'{DATA}/inventory.json', []),
+                                   'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs][-30:],
+                                   'pending': sorted(pending)})
+        if p.startswith('/receipts/') and '..' not in p:
+            try:
+                return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
+            except FileNotFoundError:
+                pass
+        self.send(404, {'error': 'not found'})
+
+    def do_POST(self):
+        p = self.path.split('?')[0]
+        body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if p == '/upload':
+            if not body:
+                return self.send(400, {'error': 'empty'})
+            name = time.strftime('%Y%m%d-%H%M%S') + '.jpg'
+            open(f'{RECEIPTS}/{name}', 'wb').write(body)
+            with lock:
+                pending.add(name)
+            threading.Thread(target=run_intake, args=(f'{RECEIPTS}/{name}',), daemon=True).start()
+            return self.send(202, {'file': name})
+        if p.startswith('/api/remove/'):
+            with lock:
+                inv = load(f'{DATA}/inventory.json', [])
+                inv = [i for i in inv if i['id'] != p[12:]]
+                json.dump(inv, open(f'{DATA}/inventory.json.tmp', 'w'), ensure_ascii=False, indent=1)
+                os.replace(f'{DATA}/inventory.json.tmp', f'{DATA}/inventory.json')
+            return self.send(200, {'ok': True})
+        self.send(404, {'error': 'not found'})
+
+    def log_message(self, fmt, *a):
+        if '/api/state' not in fmt % a:
+            super().log_message(fmt, *a)
+
+
+if __name__ == '__main__':
+    os.makedirs(RECEIPTS, exist_ok=True)
+    os.makedirs(DATA, exist_ok=True)
+    ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', 8090))), H).serve_forever()

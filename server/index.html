@@ -1,0 +1,28 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><title>mealprep</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="/manifest.json">
+<style>
+body{font:16px system-ui;margin:0;padding:12px;background:#111;color:#eee}
+h2{font-size:15px;color:#999;margin:20px 0 6px;text-transform:uppercase}
+label.cam{display:block;background:#2a6;color:#fff;text-align:center;padding:18px;border-radius:12px;font-size:20px}
+input[type=file]{display:none}
+ul{list-style:none;padding:0;margin:0}li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #222}
+li span{flex:1}small{color:#888}.soon small{color:#e94}.gone small{color:#e44}
+button{background:#333;color:#eee;border:0;border-radius:8px;padding:8px 12px}
+img{width:56px;height:56px;object-fit:cover;border-radius:6px}#msg{color:#fc6;margin:8px 0}
+</style></head><body>
+<label class="cam">📷 Kassenbon<input type="file" accept="image/*" capture="environment" onchange="up(this.files[0])"></label>
+<div id="msg"></div>
+<h2>Vorrat</h2><ul id="inv"></ul>
+<h2>Bons</h2><ul id="rec"></ul>
+<script>
+const $=id=>document.getElementById(id);
+async function up(f){if(!f)return;$('msg').textContent='Hochladen…';
+ const r=await fetch('/upload',{method:'POST',body:f});$('msg').textContent=r.ok?'Wird gelesen, ~2 min':'Upload fehlgeschlagen';load()}
+async function rm(id){await fetch('/api/remove/'+id,{method:'POST'});load()}
+async function load(){const s=await (await fetch('/api/state')).json();const today=new Date().toISOString().slice(0,10);
+ if(s.pending.length)$('msg').textContent='Wird gelesen: '+s.pending.join(', ');else if($('msg').textContent.startsWith('Wird'))$('msg').textContent='';
+ $('inv').innerHTML=s.inventory.sort((a,b)=>a.expires<b.expires?-1:1).map(i=>{const d=(new Date(i.expires)-new Date(today))/864e5;
+  return `<li class="${d<0?'gone':d<3?'soon':''}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${i.expires}</small></span><button onclick="rm('${i.id}')">weg</button></li>`}).join('')||'<li><small>leer</small></li>';
+ $('rec').innerHTML=s.receipts.slice().reverse().map(r=>`<li><img src="/receipts/${r.file}"><span>${r.time} <small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></span></li>`).join('')||'<li><small>keine</small></li>'}
+load();setInterval(load,10000);
+</script></body></html>
