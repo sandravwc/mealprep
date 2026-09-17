@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Receipt photo -> inventory.json. data/aliases.json: {"raw line or name, lowercase": "canonical name" | "" to drop}. Usage: intake.py [--redo] [file ...]; no args = every unprocessed file in receipts/."""
 import base64, fcntl, json, os, sys, time, urllib.request, uuid
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from config import load_config  # noqa: E402
 
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
@@ -10,17 +12,7 @@ try:
 except FileNotFoundError:
     pass
 LLM = ENV.get('LLM_URL', 'http://127.0.0.1:8080/v1/chat/completions')
-SHELF = {'dairy': 7, 'meat': 3, 'fish': 2, 'produce': 7, 'bread': 4, 'eggs': 21,
-         'pantry': 180, 'frozen': 90, 'drinks': 180, 'other': 14}  # days from purchase to "expires"
-GRACE = {'dairy': 3, 'meat': 0, 'fish': 0, 'produce': 4, 'bread': 3, 'eggs': 14,
-         'pantry': 365, 'frozen': 180, 'drinks': 365, 'other': 30}  # days past "expires" still fine to eat
 SOON = 3  # days before "expires" counts as soon
-TAGS = {'scharf': 'mag scharf', 'vegetarisch': 'vegetarisch', 'vegan': 'vegan', 'wenig_fleisch': 'wenig Fleisch',
-        'fisch': 'mag Fisch', 'pasta': 'mag Pasta', 'reis': 'mag Reis', 'kartoffeln': 'mag Kartoffeln',
-        'asiatisch': 'mag asiatisch', 'mediterran': 'mag mediterran', 'orientalisch': 'mag orientalisch',
-        'deutsch': 'mag deutsche Hausmannskost', 'neues': 'probiert gern Neues', 'schnell': 'unter der Woche max 30 min',
-        'reste': 'kocht gern vor / Reste', 'suess': 'mag süß', 'lowcarb': 'wenig Kohlenhydrate',
-        'protein': 'viel Protein', 'glutenfrei': 'glutenfrei', 'laktosefrei': 'laktosefrei', 'koriander': 'kein Koriander'}
 
 
 def load_profile():
@@ -35,10 +27,25 @@ def load_profile():
 
 
 def profile_text(profile):
-    parts = [TAGS[t] for t in profile.get('tags', []) if t in TAGS]
+    tags = load_config()['tags']
+    parts = [tags[t] for t in profile.get('tags', []) if t in tags]
     if profile.get('text', '').strip():
         parts.append(profile['text'].strip())
     return '; '.join(parts)
+
+
+def cats():
+    return load_config()['categories']  # {name: [shelf, grace]}
+
+
+def prompt():
+    return ('German supermarket receipt. Return a JSON array, one object per purchased line, keys: '
+            'raw (the line exactly as printed), name (readable German product name as on the package, expand every '
+            'abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
+            '"WUERF. MILD&N."->"Käsewürfel mild & nussig", "MILCHSCHOKOSTR"->"Milchschokostreusel"; never leave uppercase '
+            'abbreviations), qty (number, use the "2 Stk x" line if present), unit ("Stück","kg","g","l","ml","Packung"), '
+            f'category (one of {list(cats())}). Skip anything not food or drink: bags, straws, Kassenkarton, Pfand, '
+            'discounts, totals, payment, tax lines. Tax letter A (19%) usually means non-food, B (7%) means food. Output only JSON.')
 
 
 def status(item, today=None):
@@ -47,18 +54,9 @@ def status(item, today=None):
     exp = item.get('expires', '9999')
     if exp < today:
         left = (time.mktime(time.strptime(exp, '%Y-%m-%d')) - time.mktime(time.strptime(today, '%Y-%m-%d'))) / 86400
-        return 'bad' if -left > GRACE.get(item.get('category'), 0) else 'expired'
+        return 'bad' if -left > cats().get(item.get('category'), [0, 0])[1] else 'expired'
     soon = time.strftime('%Y-%m-%d', time.localtime(time.mktime(time.strptime(today, '%Y-%m-%d')) + SOON * 86400))
     return 'soon' if exp <= soon else 'ok'
-PROMPT = ('German supermarket receipt. Return a JSON array, one object per purchased line, keys: '
-          'raw (the line exactly as printed), name (readable German product name as on the package, expand every '
-          'abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
-          '"WUERF. MILD&N."->"Käsewürfel mild & nussig", "MILCHSCHOKOSTR"->"Milchschokostreusel"; never leave uppercase '
-          'abbreviations), qty (number, use the "2 Stk x" line if present), unit ("Stück","kg","g","l","ml","Packung"), '
-          f'category (one of {list(SHELF)}). Skip anything not food or drink: bags, straws, Kassenkarton, Pfand, '
-          'discounts, totals, payment, tax lines. Tax letter A (19%) usually means non-food, B (7%) means food. Output only JSON.')
-
-
 def load(p, default):
     try:
         return json.load(open(p))
@@ -77,7 +75,7 @@ def ask_llm(img):
     req = {'chat_template_kwargs': {'enable_thinking': False}, 'temperature': 0, 'max_tokens': 1500,
            'messages': [{'role': 'user', 'content': [
                {'type': 'image_url', 'image_url': {'url': f'data:{mime};base64,{b64}'}},
-               {'type': 'text', 'text': PROMPT}]}]}
+               {'type': 'text', 'text': prompt()}]}]}
     r = urllib.request.urlopen(urllib.request.Request(
         LLM, json.dumps(req).encode(), {'Content-Type': 'application/json'}), timeout=900)
     return json.load(r)['choices'][0]['message']['content']
@@ -85,7 +83,7 @@ def ask_llm(img):
 
 def parse_items(text, aliases):
     """Model text -> clean item dicts. Tolerates code fences, junk fields, bad numbers."""
-    out = []
+    out, known = [], cats()
     a, b = text.find('['), text.rfind(']')
     if a < 0 or b < a:
         return out  # no array = model says this is not a receipt
@@ -103,7 +101,7 @@ def parse_items(text, aliases):
         if not name:
             continue  # alias "" = drop, e.g. bags and straws the model keeps listing
         out.append({'raw': raw, 'name': name, 'qty': qty,
-                    'unit': str(it.get('unit') or 'Stück'), 'category': cat if cat in SHELF else 'other'})
+                    'unit': str(it.get('unit') or 'Stück'), 'category': cat if cat in known else 'other'})
     return out
 
 
@@ -111,9 +109,9 @@ def intake(path):
     raw = ask_llm(path)
     items = parse_items(raw, load(f'{DATA}/aliases.json', {}))
     today, rid = time.strftime('%Y-%m-%d'), os.path.basename(path)
-    inv = load(f'{DATA}/inventory.json', [])
+    inv, known = load(f'{DATA}/inventory.json', []), cats()
     for it in items:
-        exp = time.strftime('%Y-%m-%d', time.localtime(time.time() + SHELF[it['category']] * 86400))
+        exp = time.strftime('%Y-%m-%d', time.localtime(time.time() + known[it['category']][0] * 86400))
         inv.append({**it, 'id': uuid.uuid4().hex[:8], 'bought': today, 'expires': exp, 'receipt': rid})
     save(f'{DATA}/inventory.json', inv)
     rec = load(f'{DATA}/receipts.json', [])

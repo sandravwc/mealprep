@@ -5,7 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from intake import status, load_profile, TAGS  # noqa: E402
+from intake import status, load_profile  # noqa: E402
+from config import load_config, save_config  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
 pending = set()  # files uploaded, intake not finished yet
@@ -51,7 +52,7 @@ class H(BaseHTTPRequestHandler):
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending),
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
-                                   'profile': load_profile(), 'tags': TAGS})
+                                   'profile': load_profile(), 'config': load_config()})
         if p.startswith('/receipts/') and '..' not in p:
             try:
                 return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
@@ -74,11 +75,16 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/profile':
             try:
                 d = json.loads(body)
-                prof = {'tags': [t for t in d.get('tags', []) if t in TAGS], 'text': str(d.get('text', ''))[:2000]}
+                prof = {'tags': [t for t in d.get('tags', []) if t in load_config()['tags']], 'text': str(d.get('text', ''))[:2000]}
             except (ValueError, AttributeError):
                 return self.send(400, {'error': 'bad json'})
             save_json(f'{DATA}/profile.json', prof)
             return self.send(200, {'ok': True})
+        if p == '/api/config':
+            try:
+                return self.send(200, save_config(json.loads(body)))
+            except (ValueError, AttributeError):
+                return self.send(400, {'error': 'bad json'})
         if p.startswith('/api/rate/'):  # /api/rate/<id>/up|down
             sid, val = (p[10:].split('/') + [''])[:2]
             with lock:

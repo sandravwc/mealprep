@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Daily sanity pass over data/*.json. Removes duplicates and junk, never food. Flags items past their grace period. Pushes a summary when it changed anything."""
-from intake import DATA, SHELF, load, save, notify, status
+from intake import DATA, cats, load, save, notify, status
 
 def clean_inventory(inv, aliases):
-    seen, out, dropped = set(), [], []
+    seen, out, dropped, known = set(), [], [], cats()
     for i in inv:
         name = str(i.get('name', '')).strip()
         key = (i.get('receipt'), name.lower())
@@ -14,7 +14,7 @@ def clean_inventory(inv, aliases):
         else:
             seen.add(key)
             i['name'] = name
-            if i.get('category') not in SHELF:
+            if i.get('category') not in known:
                 i['category'] = 'other'
             out.append(i)
     return out, dropped

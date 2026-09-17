@@ -49,7 +49,8 @@ no database. Three Python files and one HTML page.
 
 ```
 server/app.py            PWA + API, ThreadingHTTPServer, ~120 lines
-server/intake.py         photo -> llama-server -> inventory.json, shelf/grace tables, ntfy
+server/config.py         defaults for categories [shelf, grace] and taste tags, overrides in data/config.json
+server/intake.py         photo -> llama-server -> inventory.json, ntfy
 server/suggest.py        stock + history + profile -> 2 recipes -> suggestions.json, ntfy
 server/janitor.py        daily dedupe/junk pass, flags food past grace, never deletes food
 server/index.html        the whole UI, vanilla JS, German labels
@@ -73,8 +74,9 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   `[{raw, name, qty, unit, category}]`, expansion rules, skip non-food.
 - `data/aliases.json`: `{"raw line or name, lowercase": "canonical" | ""}`.
   Empty string drops the item. Hand-edit when the model keeps a bad name.
-- `SHELF` (purchase -> expires) and `GRACE` (days past expires still fine)
-  per category. `status()` yields ok / soon / expired / bad.
+- Categories carry `[shelf, grace]`: days from purchase to expiry, days past
+  expiry still fine. `status()` yields ok / soon / expired / bad. Editable in
+  the PWA, `other` always exists.
 - Non-receipt photo: model answers in prose, recorded as 0 items, no retry.
 - ~90 s per receipt on the 8 Gen 1 CPU. Fine for cron.
 
@@ -99,11 +101,13 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 - Sections: Offen (unmade, last 2 days, "gekocht" button), Gekocht (date,
   thumbs, last 7 days + "ältere"), Vorrat (tiers, "weg" button), Bons
   (collapsible per day, tap thumbnail for the photo).
-- Burger menu: taste profile toggles, free text, learned likes/dislikes.
+- Burger menu: taste toggles, free text, learned likes/dislikes, tag editor,
+  category table (shelf and grace days). Saved to `data/profile.json` and
+  `data/config.json`.
 - Camera button fixed at the bottom.
 - Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`,
   `POST /api/rate/<id>/<up|down|none>`, `POST /api/remove/<id>`,
-  `POST /api/profile`.
+  `POST /api/profile`, `POST /api/config`.
 - Plain HTTP on the LAN, so "add to home screen" gives a bookmark, not a
   standalone install. Good enough.
 
@@ -139,7 +143,7 @@ subscribe to the topic. Optional: Syncthing-Fork sharing `receipts/`.
 ## Test
 
 ```sh
-cd server && python3 test_intake.py && python3 test_suggest.py && python3 test_janitor.py
+cd server && for t in test_*.py; do python3 $t; done
 ```
 
 ## Status

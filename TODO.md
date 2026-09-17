@@ -86,7 +86,7 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 
 - [ ] Partial decrement (used 2 of 10 eggs). Now all-or-nothing
 - [x] `server/janitor.py` cron 16:50: dedupe stock, drop alias-"" junk, dedupe suggestions. Never removes food. Pushes "entsorgen?" for items past grace
-- [x] Expiry tiers: `SHELF` (purchase → expires) + `GRACE` per category (days past expires still fine; meat/fish 0, dairy 3, eggs 14, pantry 365). Status ok/soon/expired/bad drives stock view and prompt priority
+- [x] Expiry tiers: category → `[shelf, grace]` in `server/config.py`, overrides `data/config.json`, editable in PWA. Status ok/soon/expired/bad drives stock view and prompt priority
 - [x] Daily "entsorgen?" push from janitor when something is past grace
 - [ ] NFC tag / home-screen shortcut → PWA
 
