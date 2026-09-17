@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fridge/pantry photo -> proposals.json (add/remove suggestions), never touches stock directly.
 Usage: fridge.py [file ...]; no args = every unprocessed file in fridge/."""
-import base64, json, os, sys, time, urllib.request, uuid
+import base64, contextlib, json, os, sys, time, urllib.request, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from intake import DATA, HOME, LLM, cats, load, save, notify, llm, job_lock  # noqa: E402
 
@@ -94,25 +94,25 @@ if __name__ == '__main__':
         f'{FRIDGE}/{f}' for f in os.listdir(FRIDGE)
         if not f.startswith('.') and f not in state['done'] and os.path.isfile(f'{FRIDGE}/{f}')
         and time.time() - os.path.getmtime(f'{FRIDGE}/{f}') > 10)
-    for f in files:
-        try:
-            with llm():
+    with llm() if files else contextlib.nullcontext():
+        for f in files:
+            try:
                 seen = parse_seen(ask_llm(f))
-        except Exception as e:
-            print(f'{f}: {e}', file=sys.stderr)
-            notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
-            continue
-        props = adds(seen, load(f'{DATA}/inventory.json', []))
-        add_proposals(props, os.path.basename(f))
-        scan = state.get('scan') or {'last': 0, 'seen': []}
-        if time.time() - scan['last'] > SESSION:
-            scan = {'last': 0, 'seen': []}
-        scan['seen'] = sorted(set(scan['seen']) | {x['name'] for x in seen})
-        scan['last'] = time.time()
-        state['scan'] = scan
-        state['done'].append(os.path.basename(f))
-        state['photos'].append({'file': os.path.basename(f), 'time': time.strftime('%Y-%m-%d %H:%M'), 'seen': [x['name'] for x in seen]})
-        save(f'{DATA}/fridge.json', state)
-        notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu', ', '.join(p['name'] for p in props) or 'nichts Neues')
+            except Exception as e:
+                print(f'{f}: {e}', file=sys.stderr)
+                notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
+                continue
+            props = adds(seen, load(f'{DATA}/inventory.json', []))
+            add_proposals(props, os.path.basename(f))
+            scan = state.get('scan') or {'last': 0, 'seen': []}
+            if time.time() - scan['last'] > SESSION:
+                scan = {'last': 0, 'seen': []}
+            scan['seen'] = sorted(set(scan['seen']) | {x['name'] for x in seen})
+            scan['last'] = time.time()
+            state['scan'] = scan
+            state['done'].append(os.path.basename(f))
+            state['photos'].append({'file': os.path.basename(f), 'time': time.strftime('%Y-%m-%d %H:%M'), 'seen': [x['name'] for x in seen]})
+            save(f'{DATA}/fridge.json', state)
+            notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu', ', '.join(p['name'] for p in props) or 'nichts Neues')
     if close_scan(state):
-        save(f'{DATA}/fridge.json', state)
+            save(f'{DATA}/fridge.json', state)

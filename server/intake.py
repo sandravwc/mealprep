@@ -186,15 +186,15 @@ if __name__ == '__main__':
         f'{RECEIPTS}/{f}' for f in os.listdir(RECEIPTS)
         if not f.startswith('.') and f not in done and os.path.isfile(f'{RECEIPTS}/{f}')
         and time.time() - os.path.getmtime(f'{RECEIPTS}/{f}') > 10)  # skip files still syncing
-    for f in files:
-        try:
-            with llm():
+    with llm() if files else contextlib.nullcontext():
+        for f in files:
+            try:
                 items = intake(f)
-        except Exception as e:  # LLM down or unparsable: log, retry on next cron run
-            print(f'{f}: {e}', file=sys.stderr)
-            notify('receipt failed, will retry', f'{os.path.basename(f)}: {e}')
-            continue
-        if items:
-            notify(f'{len(items)} items added', ', '.join(i['name'] for i in items))
-        else:
-            notify('no receipt found', load(f'{DATA}/receipts.json', [])[-1]['raw'][:200])
+            except Exception as e:  # LLM down or unparsable: log, retry on next cron run
+                print(f'{f}: {e}', file=sys.stderr)
+                notify('receipt failed, will retry', f'{os.path.basename(f)}: {e}')
+                continue
+            if items:
+                notify(f'{len(items)} items added', ', '.join(i['name'] for i in items))
+            else:
+                notify('no receipt found', load(f'{DATA}/receipts.json', [])[-1]['raw'][:200])
