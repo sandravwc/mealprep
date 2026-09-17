@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from intake import status  # noqa: E402
+from intake import status, load_profile, TAGS  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, DATA = f'{HOME}/receipts', f'{HOME}/data'
 pending = set()  # files uploaded, intake not finished yet
@@ -17,13 +17,6 @@ def load(p, default):
         return json.load(open(p))
     except FileNotFoundError:
         return default
-
-
-def read_profile():
-    try:
-        return open(f'{DATA}/profile.txt').read()
-    except FileNotFoundError:
-        return ''
 
 
 def save_json(p, d):
@@ -58,7 +51,7 @@ class H(BaseHTTPRequestHandler):
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending),
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
-                                   'profile': read_profile()})
+                                   'profile': load_profile(), 'tags': TAGS})
         if p.startswith('/receipts/') and '..' not in p:
             try:
                 return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
@@ -79,7 +72,12 @@ class H(BaseHTTPRequestHandler):
             threading.Thread(target=run_intake, args=(f'{RECEIPTS}/{name}',), daemon=True).start()
             return self.send(202, {'file': name})
         if p == '/api/profile':
-            open(f'{DATA}/profile.txt', 'w').write(body.decode()[:2000])
+            try:
+                d = json.loads(body)
+                prof = {'tags': [t for t in d.get('tags', []) if t in TAGS], 'text': str(d.get('text', ''))[:2000]}
+            except (ValueError, AttributeError):
+                return self.send(400, {'error': 'bad json'})
+            save_json(f'{DATA}/profile.json', prof)
             return self.send(200, {'ok': True})
         if p.startswith('/api/rate/'):  # /api/rate/<id>/up|down
             sid, val = (p[10:].split('/') + [''])[:2]

@@ -15,6 +15,30 @@ SHELF = {'dairy': 7, 'meat': 3, 'fish': 2, 'produce': 7, 'bread': 4, 'eggs': 21,
 GRACE = {'dairy': 3, 'meat': 0, 'fish': 0, 'produce': 4, 'bread': 3, 'eggs': 14,
          'pantry': 365, 'frozen': 180, 'drinks': 365, 'other': 30}  # days past "expires" still fine to eat
 SOON = 3  # days before "expires" counts as soon
+TAGS = {'scharf': 'mag scharf', 'vegetarisch': 'vegetarisch', 'vegan': 'vegan', 'wenig_fleisch': 'wenig Fleisch',
+        'fisch': 'mag Fisch', 'pasta': 'mag Pasta', 'reis': 'mag Reis', 'kartoffeln': 'mag Kartoffeln',
+        'asiatisch': 'mag asiatisch', 'mediterran': 'mag mediterran', 'orientalisch': 'mag orientalisch',
+        'deutsch': 'mag deutsche Hausmannskost', 'neues': 'probiert gern Neues', 'schnell': 'unter der Woche max 30 min',
+        'reste': 'kocht gern vor / Reste', 'suess': 'mag süß', 'lowcarb': 'wenig Kohlenhydrate',
+        'protein': 'viel Protein', 'glutenfrei': 'glutenfrei', 'laktosefrei': 'laktosefrei', 'koriander': 'kein Koriander'}
+
+
+def load_profile():
+    """{'tags': [...], 'text': str}. Migrates the old plain-text profile once."""
+    try:
+        return json.load(open(f'{DATA}/profile.json'))
+    except FileNotFoundError:
+        try:
+            return {'tags': [], 'text': open(f'{DATA}/profile.txt').read()}
+        except FileNotFoundError:
+            return {'tags': [], 'text': ''}
+
+
+def profile_text(profile):
+    parts = [TAGS[t] for t in profile.get('tags', []) if t in TAGS]
+    if profile.get('text', '').strip():
+        parts.append(profile['text'].strip())
+    return '; '.join(parts)
 
 
 def status(item, today=None):

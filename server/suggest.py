@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inventory + history + season -> 2 recipe suggestions in suggestions.json, ntfy push. Run daily from cron."""
 import json, os, sys, time, urllib.request, uuid
-from intake import DATA, ENV, LLM, load, save, notify, status
+from intake import DATA, ENV, LLM, load, save, notify, status, load_profile, profile_text
 
 SEASON = {12: 'Winter', 1: 'Winter', 2: 'Winter', 3: 'Frühling', 4: 'Frühling', 5: 'Frühling',
           6: 'Sommer', 7: 'Sommer', 8: 'Sommer', 9: 'Herbst', 10: 'Herbst', 11: 'Herbst'}
@@ -54,11 +54,7 @@ if __name__ == '__main__':
     if not inv:
         sys.exit('empty inventory, nothing to suggest')
     hist = load(f'{DATA}/suggestions.json', [])
-    try:
-        profile = open(f'{DATA}/profile.txt').read()
-    except FileNotFoundError:
-        profile = ''
-    raw = ask(build_prompt(inv, hist, today, profile))
+    raw = ask(build_prompt(inv, hist, today, profile_text(load_profile())))
     sugs = parse(raw)
     if not sugs:
         sys.exit(f'no suggestions parsed: {raw[:200]}')

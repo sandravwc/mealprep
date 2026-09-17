@@ -17,3 +17,6 @@ assert status({'expires': '2026-09-10', 'category': 'dairy'}, '2026-09-14') == '
 assert status({'expires': '2026-09-12', 'category': 'pantry'}, '2026-09-10') == 'soon'
 assert status({'expires': '2026-10-12', 'category': 'pantry'}, '2026-09-10') == 'ok'
 print('ok4')
+from intake import profile_text
+assert profile_text({'tags': ['scharf', 'bogus'], 'text': ' kein Sellerie '}) == 'mag scharf; kein Sellerie'
+print('ok5')
