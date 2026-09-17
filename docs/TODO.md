@@ -43,7 +43,6 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - Stock in tiers: DRINGEND / BALD / rest / NICHT verwenden. Season from month. Profile tags + text. Liked, disliked, cooked, skipped last 14 d
 - 2 dinners as JSON with `uses` naming stock items. One of the two changes exactly one axis
 - First run picked Lachs (expiring next day) and "neu: Curry-Gewürz". Rule works
-- [ ] Weather. open-meteo one request, when missed
 - [ ] ntfy action buttons on the push itself. Now: open PWA, tap gekocht
 
 ## 3. Consumption + PWA — done
