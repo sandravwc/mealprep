@@ -95,6 +95,8 @@ SoC is SM8475 = 8+ Gen 1 (TSMC), not 8 Gen 1. Same Hexagon v69, same Adreno 730.
 
 ## 5. HTTPS + web push, drop ntfy
 
+Rule since 2026-09-17: no SaaS. Own domain, own cert, own push. ntfy.sh is the last hosted piece and goes with web push.
+
 Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the LAN.
 
 - [x] Tailscale tried and dropped: built from upstream source with Termux's Go (its stdlib patch bypasses Android's netlink block, plus omit tags and the android exclusion removed from acme/cert), daemon ran clean in userspace mode. Dropped because the daily driver would need the Tailscale app forever. Binaries stay in `~/.tailscale`, service disabled
