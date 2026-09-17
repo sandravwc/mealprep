@@ -7,7 +7,33 @@ SEASON = {12: 'Winter', 1: 'Winter', 2: 'Winter', 3: 'Frühling', 4: 'Frühling'
           6: 'Sommer', 7: 'Sommer', 8: 'Sommer', 9: 'Herbst', 10: 'Herbst', 11: 'Herbst'}
 
 
-def build_prompt(inv, history, today, profile=''):
+WMO = {0: 'sonnig', 1: 'heiter', 2: 'wolkig', 3: 'bedeckt', 45: 'Nebel', 48: 'Nebel', 51: 'Nieselregen', 53: 'Nieselregen',
+       55: 'Nieselregen', 61: 'Regen', 63: 'Regen', 65: 'starker Regen', 71: 'Schnee', 73: 'Schnee', 75: 'starker Schnee',
+       80: 'Schauer', 81: 'Schauer', 82: 'heftige Schauer', 95: 'Gewitter', 96: 'Gewitter', 99: 'Gewitter'}
+
+
+def weather():
+    """'Wetter: 14 °C, Regen' for the place in .env, or '' if unset or offline. Geocoded once, cached."""
+    place = ENV.get('WEATHER_PLACE')
+    if not place:
+        return ''
+    try:
+        geo = load(f'{DATA}/weather.json', {})
+        if geo.get('place') != place:
+            r = json.load(urllib.request.urlopen(
+                'https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + urllib.request.quote(place), timeout=10))
+            geo = {'place': place, 'lat': r['results'][0]['latitude'], 'lon': r['results'][0]['longitude']}
+            save(f'{DATA}/weather.json', geo)
+        r = json.load(urllib.request.urlopen(
+            f"https://api.open-meteo.com/v1/forecast?latitude={geo['lat']}&longitude={geo['lon']}"
+            '&daily=temperature_2m_max,weather_code&timezone=auto&forecast_days=1', timeout=10))
+        return f"Wetter heute: {round(r['daily']['temperature_2m_max'][0])} °C, {WMO.get(r['daily']['weather_code'][0], 'wechselhaft')}"
+    except (OSError, KeyError, IndexError, ValueError) as e:
+        print('weather skipped:', e, file=sys.stderr)
+        return ''
+
+
+def build_prompt(inv, history, today, profile='', wx=''):
     tiers = {'expired': [], 'soon': [], 'ok': [], 'bad': []}
     for i in sorted(inv, key=lambda i: i['expires']):
         tiers[status(i, today)].append(f"- {i['name']} ({i['qty']:g} {i['unit']}, bis {i['expires']})")
@@ -20,10 +46,10 @@ def build_prompt(inv, history, today, profile=''):
     skipped = ', '.join(h['title'] for h in recent if not h.get('made')) or 'nichts'
     liked = ', '.join(h['title'] for h in history if h.get('rating') == 'up') or 'keine Angabe'
     disliked = ', '.join(h['title'] for h in history if h.get('rating') == 'down') or 'keine Angabe'
-    return (f"Heute ist {today}, {SEASON[int(today[5:7])]}. Vorrat:\n{stock}\n\n"
+    return (f"Heute ist {today}, {SEASON[int(today[5:7])]}. {wx}\nVorrat:\n{stock}\n\n"
             f"Geschmacksprofil: {profile.strip() or 'keine Angabe'}\nHat geschmeckt: {liked}\nHat nicht geschmeckt: {disliked}\n"
             f"In den letzten 14 Tagen gekocht: {cooked}. Vorgeschlagen aber nicht gekocht: {skipped}.\n\n"
-            "Schlage 2 Abendessen vor. Regeln: DRINGEND vor BALD vor Übrig. NICHT-verwenden-Zutaten nie nutzen. Nur Zutaten aus dem Vorrat "
+            "Schlage 2 Abendessen vor, passend zum Wetter (kalt und nass: Suppe, Eintopf, Ofen; heiß: leicht, kalt, Salat). Regeln: DRINGEND vor BALD vor Übrig. NICHT-verwenden-Zutaten nie nutzen. Nur Zutaten aus dem Vorrat "
             "plus Grundzutaten (Salz, Pfeffer, Öl, Gewürze). Nährstoffbalance über die Woche beachten. Wiederhole nichts "
             "aus den letzten 14 Tagen. Genau eines der beiden soll etwas Neues wagen: bekannte Zutat, neue Technik oder "
             "neues Gewürz, nicht beides. Antwort nur als JSON-Array: "
@@ -56,7 +82,7 @@ if __name__ == '__main__':
     hist = load(f'{DATA}/suggestions.json', [])
     _lock = job_lock()
     with llm():
-        raw = ask(build_prompt(inv, hist, today, profile_text(load_profile())))
+        raw = ask(build_prompt(inv, hist, today, profile_text(load_profile()), weather()))
     sugs = parse(raw)
     if not sugs:
         sys.exit(f'no suggestions parsed: {raw[:200]}')

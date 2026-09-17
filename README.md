@@ -86,8 +86,10 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 ### 2. Suggest (`suggest.py`)
 
 - Cron 17:00. Text-only prompt: stock in tiers (DRINGEND / BALD / rest /
-  NICHT verwenden), season from month, taste profile, liked and disliked
-  recipes, cooked and skipped in the last 14 days.
+  NICHT verwenden), season from month, today's weather (Open-Meteo, no key,
+  place from `.env`, cold and wet steers to soup and oven, hot to salad),
+  taste profile, liked and disliked recipes, cooked and skipped in the last
+  14 days.
 - Asks for 2 dinners as JSON with `uses` naming stock items exactly. One of
   the two must change exactly one axis: new technique or new spice, not both.
 - Push "Heute kochen?" with both titles, click opens the PWA.
@@ -131,6 +133,7 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 NTFY_TOPIC=mealprep-<random>          required for pushes
 BASE_URL=http://192.168.1.106:8090    click target in pushes
 LLM_URL=http://127.0.0.1:8080/v1/chat/completions   default
+WEATHER_PLACE=Berlin                  optional, any town name, geocoded once
 ```
 
 `PORT` env var for `app.py` (default 8090).

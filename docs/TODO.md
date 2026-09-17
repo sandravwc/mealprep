@@ -40,7 +40,7 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 
 `server/suggest.py`, cron 17:00. Text-only prompt, ~90 s when the LLM is idle.
 
-- Stock in tiers: DRINGEND / BALD / rest / NICHT verwenden. Season from month. Profile tags + text. Liked, disliked, cooked, skipped last 14 d
+- Stock in tiers: DRINGEND / BALD / rest / NICHT verwenden. Season from month. Weather from Open-Meteo when `WEATHER_PLACE` is set, skipped silently otherwise. Profile tags + text. Liked, disliked, cooked, skipped last 14 d
 - 2 dinners as JSON with `uses` naming stock items. One of the two changes exactly one axis
 - First run picked Lachs (expiring next day) and "neu: Curry-Gewürz". Rule works
 - [ ] ntfy action buttons on the push itself. Now: open PWA, tap gekocht
