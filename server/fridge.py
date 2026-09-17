@@ -77,7 +77,7 @@ if __name__ == '__main__':
             seen = parse_seen(ask_llm(f))
         except Exception as e:
             print(f'{f}: {e}', file=sys.stderr)
-            notify('Kühlschrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
+            notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
             continue
         props, state['misses'] = diff(seen, load(f'{DATA}/inventory.json', []), state['misses'])
         old = load(f'{DATA}/proposals.json', [])
@@ -89,5 +89,5 @@ if __name__ == '__main__':
         save(f'{DATA}/fridge.json', state)
         adds = [p['name'] for p in props if p['kind'] == 'add']
         rems = [p['name'] for p in props if p['kind'] == 'remove']
-        notify(f'Kühlschrank: {len(seen)} gesehen, +{len(adds)} −{len(rems)}',
+        notify(f'Schrank: {len(seen)} gesehen, +{len(adds)} −{len(rems)}',
                (('neu: ' + ', '.join(adds)) if adds else '') + (('  weg? ' + ', '.join(rems)) if rems else '') or 'nichts Neues')

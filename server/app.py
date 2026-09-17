@@ -70,7 +70,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {'error': 'empty'})
             fridge = 'kind=fridge' in self.path
             folder, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
-            name = time.strftime('%Y%m%d-%H%M%S') + '.jpg'
+            name = time.strftime('%Y%m%d-%H%M%S') + '-' + os.urandom(2).hex() + '.jpg'  # two uploads in one second must not collide
             open(f'{folder}/{name}', 'wb').write(body)
             with lock:
                 pending.add(name)
