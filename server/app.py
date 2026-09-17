@@ -41,7 +41,7 @@ class H(BaseHTTPRequestHandler):
         if p == '/api/state':
             recs = load(f'{DATA}/receipts.json', [])
             return self.send(200, {'inventory': load(f'{DATA}/inventory.json', []),
-                                   'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs][-30:],
+                                   'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending)})
         if p.startswith('/receipts/') and '..' not in p:
             try:
