@@ -8,7 +8,7 @@ sys.path.insert(0, HERE)
 from intake import status, load_profile  # noqa: E402
 from config import load_config, save_config  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
-RECEIPTS, FRIDGE, DATA = f'{HOME}/receipts', f'{HOME}/fridge', f'{HOME}/data'
+RECEIPTS, FRIDGE, DISHES, DATA = f'{HOME}/receipts', f'{HOME}/fridge', f'{HOME}/dishes', f'{HOME}/data'
 lock = threading.Lock()
 
 
@@ -58,7 +58,7 @@ class H(BaseHTTPRequestHandler):
                                    'suggestions': load(f'{DATA}/suggestions.json', []),
                                    'profile': load_profile(), 'config': load_config(),
                                    'proposals': load(f'{DATA}/proposals.json', [])})
-        for prefix, directory in (('/receipts/', RECEIPTS), ('/fridge/', FRIDGE)):
+        for prefix, directory in (('/receipts/', RECEIPTS), ('/fridge/', FRIDGE), ('/dishes/', DISHES)):
             if p.startswith(prefix) and '..' not in p:
                 try:
                     return self.send(200, open(f'{directory}/{p[len(prefix):]}', 'rb').read(), 'image/jpeg')
@@ -72,6 +72,17 @@ class H(BaseHTTPRequestHandler):
         if p == '/upload':
             if not body:
                 return self.send(400, {'error': 'empty'})
+            if 'kind=dish' in self.path:  # plate photo for a cooked recipe: ?kind=dish&id=<suggestion id>
+                sid = self.path.split('id=')[-1].split('&')[0]
+                with lock:
+                    sug = load(f'{DATA}/suggestions.json', [])
+                    hit = next((x for x in sug if x['id'] == sid), None)
+                    if not hit:
+                        return self.send(404, {'error': 'no such recipe'})
+                    hit['photo'] = f'{sid}.jpg'
+                    open(f'{DISHES}/{sid}.jpg', 'wb').write(body)
+                    save_json(f'{DATA}/suggestions.json', sug)
+                return self.send(200, {'photo': hit['photo']})
             fridge = 'kind=fridge' in self.path
             directory, script = (FRIDGE, 'fridge.py') if fridge else (RECEIPTS, 'intake.py')
             name = time.strftime('%Y%m%d-%H%M%S') + '-' + os.urandom(2).hex() + '.jpg'  # two uploads in one second must not collide
@@ -148,5 +159,6 @@ class H(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     os.makedirs(RECEIPTS, exist_ok=True)
     os.makedirs(FRIDGE, exist_ok=True)
+    os.makedirs(DISHES, exist_ok=True)
     os.makedirs(DATA, exist_ok=True)
     ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', 8090))), H).serve_forever()

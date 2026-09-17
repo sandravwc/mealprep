@@ -8,7 +8,7 @@ body>details>summary{font-size:15px;color:#999;text-transform:uppercase;margin-t
 .cams{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:8px}label.cam{flex:1;background:#2a6;color:#fff;text-align:center;padding:18px 4px;border-radius:12px;font-size:17px;box-shadow:0 4px 16px #000a}label.alt{background:#369}
 input[type=file]{display:none}
 ul{list-style:none;padding:0;margin:0}li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #222}
-li span{flex:1}small{color:#888}small.warn{color:#e94}small b{font-weight:600}.soon small b{color:#e94}.gone small b{color:#e44}.gone span{color:#e44}
+li span{flex:1}label.snap{width:56px;height:56px;border-radius:6px;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}small{color:#888}small.warn{color:#e94}small b{font-weight:600}.soon small b{color:#e94}.gone small b{color:#e44}.gone span{color:#e44}
 button{background:#333;color:#eee;border:0;border-radius:8px;padding:8px 12px}button.on{background:#2a6}
 textarea{width:100%;box-sizing:border-box;background:#222;color:#eee;border:0;border-radius:8px;padding:8px;font:inherit;margin:6px 0}
 .date{color:#fc6;font-weight:600}
@@ -40,7 +40,7 @@ dialog{border:0;background:#000;padding:0;max-width:100vw;max-height:100vh}#set{
 <div class="cams"><label class="cam">📷 Bon<input type="file" accept="image/*" capture="environment" onchange="up(this.files[0])"></label><label class="cam alt">🧊 Kühl-/Vorratsschrank<input type="file" accept="image/*" capture="environment" onchange="up(this.files[0],'fridge')"></label></div>
 <script>
 const $=id=>document.getElementById(id);
-const de=t=>t?`${t.slice(8,10)}-${t.slice(5,7)}-${t.slice(0,4)}`:'',de5=t=>t?`${t.slice(8,10)}-${t.slice(5,7)}`:'',dt=t=>`${de5(t)} ${t.slice(11,16)}`;
+const de=t=>t?`${t.slice(8,10)}-${t.slice(5,7)}-${t.slice(0,4)}`:'',de5=t=>t?`${t.slice(8,10)}-${t.slice(5,7)}`:'',dt=t=>`${de(t)} ${t.slice(11,16)}`;
 async function up(f,kind){if(!f)return;$('msg').textContent='Hochladen…';
  const r=await fetch('/upload'+(kind?'?kind='+kind:''),{method:'POST',body:f});$('msg').textContent=r.ok?'Wird gelesen, ~2 min':'Upload fehlgeschlagen';load()}
 let allSug=0;
@@ -63,17 +63,20 @@ async function saveAll(){await fetch('/api/config',{method:'POST',body:JSON.stri
 async function saveProf(){const tags=[...document.querySelectorAll('#tags input:checked')].map(i=>i.value);
  await fetch('/api/profile',{method:'POST',body:JSON.stringify({tags,text:$('prof').value})});$('msg').textContent='Profil gespeichert';load()}
 async function prop(id,a){await fetch('/api/proposal/'+id+'/'+a,{method:'POST'});load()}
-async function made(id){await fetch('/api/made/'+id,{method:'POST'});load()}
+async function made(id){await fetch('/api/made/'+id,{method:'POST'});await load();$('msg').textContent='Gekocht. Teller-Foto? 📷 neben dem Rezept, optional'}
+async function upDish(id,f){if(!f)return;await fetch('/upload?kind=dish&id='+id,{method:'POST',body:f});load()}
 async function rm(id){await fetch('/api/remove/'+id,{method:'POST'});load()}
 async function load(){const s=await (await fetch('/api/state')).json();S=s;const today=new Date().toISOString().slice(0,10);
  if(s.pending.length)$('msg').textContent='Wird gelesen: '+s.pending.join(', ');else if($('msg').textContent.startsWith('Wird'))$('msg').textContent='';
  const openDays=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
  const week=new Date(Date.now()-7*864e5).toISOString().slice(0,10),twoDays=new Date(Date.now()-2*864e5).toISOString().slice(0,10);
- const item=x=>`<span>${x.title} <small>${de(x.time)}${x.meal?' · '+x.meal:''}</small><br><small>${x.text||''}</small><br><small>${(x.uses||[]).join(', ')}</small></span>`;
+ const pic=x=>x.photo?`<img src="/dishes/${x.photo}" onclick="show('${x.photo}','dishes')">`:'';
+ const item=x=>`<span>${x.emoji||'🍽️'} ${x.title} <small>${de(x.time)}${x.meal?' · '+x.meal:''}</small><br><small>${x.text||''}</small><br><small>${(x.uses||[]).join(', ')}</small></span>`;
  const open=s.suggestions.filter(x=>!x.made&&x.time>=twoDays).reverse();
- $('open').innerHTML=open.map(x=>`<li>${item(x)}<button onclick="made('${x.id}')">gekocht</button></li>`).join('')||'<li><small>nichts offen, nächster Vorschlag 17:00</small></li>';
+ const earlier=x=>s.suggestions.find(y=>y.photo&&y.title.toLowerCase()==x.title.toLowerCase());
+ $('open').innerHTML=open.map(x=>`<li>${earlier(x)?pic(earlier(x)):''}${item(x)}<button onclick="made('${x.id}')">gekocht</button></li>`).join('')||'<li><small>nichts offen, nächster Vorschlag 17:00</small></li>';
  const done=s.suggestions.filter(x=>x.made&&(allSug||x.time>=week)).reverse();
- $('done').innerHTML=done.map(x=>`<li><span class="date">${de(x.time)}</span>${item(x)}<button class="${x.rating=='up'?'on':''}" onclick="rate('${x.id}','${x.rating=='up'?'none':'up'}')">👍</button><button class="${x.rating=='down'?'on':''}" onclick="rate('${x.id}','${x.rating=='down'?'none':'down'}')">👎</button></li>`).join('')||'<li><small>noch nichts gekocht</small></li>';
+ $('done').innerHTML=done.map(x=>`<li>${x.photo?pic(x):`<label class="snap">📷<input type="file" accept="image/*" capture="environment" onchange="upDish('${x.id}',this.files[0])"></label>`}${item(x)}<button class="${x.rating=='up'?'on':''}" onclick="rate('${x.id}','${x.rating=='up'?'none':'up'}')">👍</button><button class="${x.rating=='down'?'on':''}" onclick="rate('${x.id}','${x.rating=='down'?'none':'down'}')">👎</button></li>`).join('')||'<li><small>noch nichts gekocht</small></li>';
  $('more').hidden=allSug||done.length==s.suggestions.filter(x=>x.made).length;
  S=s;
  const pr=s.proposals||[];$('propbox').hidden=!pr.length;$('propn').textContent=pr.length;

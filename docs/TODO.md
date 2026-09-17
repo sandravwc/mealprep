@@ -54,6 +54,7 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - ☰: taste toggles, free text, learned likes/dislikes, tag editor, category table. `data/profile.json`, `data/config.json`
 - Camera button fixed at bottom
 - `server/janitor.py` cron 16:50: dedupe stock, suggestions, receipts, drop alias-"" junk. Never removes food. Pushes "entsorgen?" for items past grace
+- [x] Emoji per dish from the model. Plate photo optional after "gekocht", stored in `dishes/`, shown in Gekocht and again in Offen when the same title comes up. Generative images rejected (5-10 min CPU per image), web fetch rejected (wrong photo half the time, dish names leave the house)
 - [ ] Partial decrement (2 of 10 eggs). Now all-or-nothing
 - [ ] Add-to-home-screen is a bookmark on plain HTTP. Tailscale HTTPS for standalone + web push, then drop ntfy
 

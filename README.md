@@ -64,7 +64,8 @@ docs/TODO.md             phases, decisions, dead ends
 ```
 
 Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
-`~/mealprep/receipts/*.jpg`, `~/mealprep/models/*.gguf`, `~/mealprep/.env`.
+`~/mealprep/{receipts,fridge,dishes}/*.jpg`, `~/mealprep/models/*.gguf`,
+`~/mealprep/.env`.
 
 ## Modules
 
@@ -92,7 +93,7 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   place from `.env`, cold and wet steers to soup and oven, hot to salad),
   taste profile, liked and disliked recipes, cooked and skipped in the last
   14 days.
-- Asks for 2 dinners as JSON with `uses` naming stock items exactly. One of
+- Asks for 2 dishes as JSON with an emoji, `uses` naming stock items exactly. One of
   the two must change exactly one axis: new technique or new spice, not both.
 - Push "Abendessen?" with both titles, click opens the PWA.
 
@@ -114,8 +115,9 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 
 ### 5. PWA (`app.py` + `index.html`)
 
-- Sections: Offen (unmade, last 2 days, "gekocht" button), Gekocht (date,
-  thumbs, last 7 days + "ältere"), Schrank-Vorschläge (✓ ✕), Vorrat
+- Sections: Offen (unmade, last 2 days, "gekocht" button, plate photo from an
+  earlier cook of the same dish if one exists), Gekocht (date, thumbs, optional
+  plate photo via 📷, last 7 days + "ältere"), Schrank-Vorschläge (✓ ✕), Vorrat
   grouped by shelf stability (verdirbt schnell / hält eine Woche / einen
   Monat / überlebt dich) with expiry tags per item, Bons (date only),
   Schrank-Fotos (date and time, quality hint visible, items in a dropdown)
@@ -127,7 +129,7 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 - Endpoints: `GET /api/state`, `POST /upload`, `POST /api/made/<id>`,
   `POST /api/rate/<id>/<up|down|none>`, `POST /api/remove/<id>`,
   `POST /api/profile`, `POST /api/config`, `POST /upload?kind=fridge`,
-  `POST /api/proposal/<id>/<accept|reject>`.
+  `POST /api/proposal/<id>/<accept|reject>`, `POST /upload?kind=dish&id=<id>`.
 - Plain HTTP on the LAN, so "add to home screen" gives a bookmark, not a
   standalone install. Good enough.
 

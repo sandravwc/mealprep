@@ -34,10 +34,13 @@ if __name__ == '__main__':
     sug, dup = clean_suggestions(load(f'{DATA}/suggestions.json', []))
     rec = list({r['file']: r for r in load(f'{DATA}/receipts.json', [])}.values())  # last record per file wins
     dup += len(load(f'{DATA}/receipts.json', [])) - len(rec)
+    props = list({(p['kind'], p['name'].lower()): p for p in load(f'{DATA}/proposals.json', [])}.values())
+    dup += len(load(f'{DATA}/proposals.json', [])) - len(props)
     if dropped or dup:
         save(f'{DATA}/inventory.json', inv)
         save(f'{DATA}/suggestions.json', sug)
         save(f'{DATA}/receipts.json', rec)
+        save(f'{DATA}/proposals.json', props)
         msg = ', '.join(dropped) + (f' · {dup} doppelte Einträge' if dup else '')
         print(msg)
         notify(f'Janitor: {len(dropped) + dup} entfernt', msg[:400])

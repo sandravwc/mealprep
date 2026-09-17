@@ -59,7 +59,7 @@ def build_prompt(inv, history, today, profile='', wx='', meal='Abendessen'):
             "plus Grundzutaten (Salz, Pfeffer, Öl, Gewürze). Nährstoffbalance über die Woche beachten. Wiederhole nichts "
             "aus den letzten 14 Tagen. Genau eines der beiden soll etwas Neues wagen: bekannte Zutat, neue Technik oder "
             "neues Gewürz, nicht beides. Antwort nur als JSON-Array: "
-            '[{"title": kurz, "text": 2-3 Sätze Zubereitung, "uses": [Vorratsnamen exakt wie oben]}]')
+            '[{"emoji": ein passendes Emoji, "title": kurz, "text": 2-3 Sätze Zubereitung, "uses": [Vorratsnamen exakt wie oben]}]')
 
 
 def ask(prompt):
@@ -75,7 +75,7 @@ def parse(text):
     out = []
     for s in json.loads(text[a:b + 1]) if a >= 0 and b > a else []:
         if s.get('title'):
-            out.append({'title': str(s['title']), 'text': str(s.get('text', '')),
+            out.append({'title': str(s['title']), 'text': str(s.get('text', '')), 'emoji': str(s.get('emoji', ''))[:2],
                         'uses': [str(u) for u in s.get('uses', []) if u]})
     return out
 
