@@ -68,17 +68,21 @@ Poco = headless box anywhere on LAN, never touched. Daily driver = only UI, no c
 - [x] Proposals in PWA with ✓ / ✕. Nothing touches stock without a tap. Accept-add uses category shelf days, qty 1 Stück
 - [ ] Score recall on 10 real fridge photos before trusting it. No real photo tested yet
 - [ ] E4B recall on real photos is poor: top shelf 2 of ~8 readable products, pantry only generic groups. Prompt tightened, untested
-- [ ] Qwen3-VL-2B downloaded (`models/Qwen3-VL-2B-Instruct-Q8_0.gguf` + mmproj). Compare on the same 3 photos with `eval_fridge.py`. Run it INSTEAD of E4B, not beside it
+- [x] Qwen3-VL-2B tested on the 3 photos: with product examples in the prompt it parrots the examples, without them it loops one word ("Schnaps" x 200) until max_tokens. Rejected. Files stay in `models/` for a later retry with repeat penalty
+- [x] Prompt examples removed for E4B too, same parroting risk
 - [ ] Tiling: crop photo 2x2, run each tile, union names. 4x time, higher effective resolution. Try after the model comparison
 - Incident 2026-09-17: second llama-server (Qwen, 2.3 GB) next to E4B (5 GB) + Shoko proot → Android killed the whole Termux app. sshd, llama, app all gone until Termux is reopened. Termux:Boot only fires on reboot. Never load two models at once on this box
 
 ### 4b. NPU / GPU on 8 Gen 1
 
-Termux is `untrusted_app`, vendor libs are out of reach. Three routes, in order of effort:
+SoC is SM8475 = 8+ Gen 1 (TSMC), not 8 Gen 1. Same Hexagon v69, same Adreno 730. Termux is `untrusted_app`, vendor libs are out of reach. Three routes:
 
-- [ ] adb self-connect: `android-tools` installed, `adb mdns services` finds nothing → wireless debugging is off. Needs: Settings → Developer → Wireless debugging on, pair once, `adb shell` = shell uid with vendor namespace. Push `build-ocl` to `/data/local/tmp`, `LD_LIBRARY_PATH=/vendor/lib64` llama-bench. This is how upstream tests Adreno. Catch: wireless debugging is off after reboot, needs a tap
+- [x] GPU via adb shell WORKS (2026-09-17). Recipe: wireless debugging paired, from Termux copy `build-ocl/bin/*` + every NEEDED lib from `$PREFIX/lib` (libc++_shared, libssl.so.3, libcrypto.so.3) + model to `/sdcard/llm`, `adb shell cp` to `/data/local/tmp/llm`, DELETE the copied `libOpenCL.so` (Termux ICD loader shadows the vendor driver), run with `LD_LIBRARY_PATH=/data/local/tmp/llm:/vendor/lib64 -ngl 99`. Qwen3-VL-2B Q8_0 under CPU load: GPU pp 62 / tg 13.9, CPU pp 88 / tg 11.5 tok/s
+- [ ] Fair bench: idle CPU, Q4_0 file (Adreno-tuned path), same binary CPU vs GPU
+- [ ] Decide: two processes (vision on GPU as shell uid, E4B text on CPU in Termux) only if the fair bench and the 8 GB budget allow. Wireless debugging resets on reboot, so the GPU side needs a tap after every reboot and the CPU path must always work alone
 - [ ] Hexagon via same route: upstream HTP libs are v73+, Gen 1 is v69. Check zhouwg/ggml-hexagon fork (claims Gen 1) once source is public. Likely no
 - [ ] LiteRT + QNN delegate lists SM8450. Needs an APK: minimal Android app hosting LiteRT-LM (Gemma E2B `.litertlm` exists for Qualcomm) or a YOLO QNN export, exposing HTTP on localhost for Termux. Only worth it if 4a is too slow on CPU
+- Memory reality: 8 GB physical + 4 GB swap, not 12. E4B resident = 5 GB. Two models at once killed Termux once already
 - Reality check: CPU does a receipt in 90 s, a fridge photo similar, suggestions in 90 s. Nothing here needs to be faster for a cron loop. NPU is curiosity, not need
 
 ## 5. HTTPS + web push, drop ntfy
