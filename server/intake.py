@@ -79,13 +79,15 @@ def cats():
 
 
 def prompt():
-    return ('German supermarket receipt. Return a JSON array, one object per purchased line, keys: '
-            'raw (the line exactly as printed), name (readable German product name as on the package, expand every '
-            'abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
+    return ('German supermarket receipt. Reply with one JSON object {"hinweis": string, "items": [...]}. items: one object per '
+            'purchased line with keys raw (the line exactly as printed), name (readable German product name as on the package, '
+            'expand every abbreviation: "JOGH. GRIE. ART."->"Joghurt griechischer Art", "GQ EIER XL BODEN"->"Eier XL Bodenhaltung", '
             '"WUERF. MILD&N."->"Käsewürfel mild & nussig", "MILCHSCHOKOSTR"->"Milchschokostreusel"; never leave uppercase '
             'abbreviations), qty (number, use the "2 Stk x" line if present), unit ("Stück","kg","g","l","ml","Packung"), '
             f'category (one of {list(cats())}). Skip anything not food or drink: bags, straws, Kassenkarton, Pfand, '
-            'discounts, totals, payment, tax lines. Tax letter A (19%) usually means non-food, B (7%) means food. Output only JSON.')
+            'discounts, totals, payment, tax lines. Tax letter A (19%) usually means non-food, B (7%) means food. '
+            'hinweis: empty if the photo is fine, else in German what is wrong: unscharf, zu dunkel, abgeschnitten, '
+            'zerknittert, kein Kassenbon. Output only JSON.')
 
 
 def status(item, today=None):
@@ -122,12 +124,23 @@ def ask_llm(img):
 
 
 def parse_items(text, aliases):
-    """Model text -> clean item dicts. Tolerates code fences, junk fields, bad numbers."""
+    """Model text -> (clean item dicts, hint). Accepts {"hinweis", "items"} or a bare array, code fences, junk fields."""
+    hint, raw = '', None
+    a, b = text.find('{'), text.rfind('}')
+    if a >= 0 and b > a:
+        try:
+            obj = json.loads(text[a:b + 1])
+            if isinstance(obj, dict) and 'items' in obj:
+                hint, raw = str(obj.get('hinweis') or '').strip(), obj['items']
+        except ValueError:
+            pass
+    if raw is None:
+        a, b = text.find('['), text.rfind(']')
+        raw = json.loads(text[a:b + 1]) if a >= 0 and b > a else []
     out, known = [], cats()
-    a, b = text.find('['), text.rfind(']')
-    if a < 0 or b < a:
-        return out  # no array = model says this is not a receipt
-    for it in json.loads(text[a:b + 1]):
+    for it in raw:
+        if not isinstance(it, dict):
+            continue
         name = str(it.get('name', '')).strip()
         if not name:
             continue
@@ -136,18 +149,20 @@ def parse_items(text, aliases):
             qty = float(it.get('qty') or 1)
         except (TypeError, ValueError):
             qty = 1.0
-        raw = str(it.get('raw') or '').strip()
-        name = aliases.get(raw.lower(), aliases.get(name.lower(), name))
+        rawline = str(it.get('raw') or '').strip()
+        name = aliases.get(rawline.lower(), aliases.get(name.lower(), name))
         if not name:
             continue  # alias "" = drop, e.g. bags and straws the model keeps listing
-        out.append({'raw': raw, 'name': name, 'qty': qty,
+        out.append({'raw': rawline, 'name': name, 'qty': qty,
                     'unit': str(it.get('unit') or 'Stück'), 'category': cat if cat in known else 'other'})
-    return out
+    return out, hint
 
 
 def intake(path):
     raw = ask_llm(path)
-    items = parse_items(raw, load(f'{DATA}/aliases.json', {}))
+    items, hint = parse_items(raw, load(f'{DATA}/aliases.json', {}))
+    if not items and not hint:
+        hint = 'kein Kassenbon erkannt'
     today, rid = time.strftime('%Y-%m-%d'), os.path.basename(path)
     inv, known = load(f'{DATA}/inventory.json', []), cats()
     for it in items:
@@ -155,9 +170,9 @@ def intake(path):
         inv.append({**it, 'id': uuid.uuid4().hex[:8], 'bought': today, 'expires': exp, 'receipt': rid})
     save(f'{DATA}/inventory.json', inv)
     rec = load(f'{DATA}/receipts.json', [])
-    rec.append({'file': rid, 'time': today, 'items': items, 'raw': raw})
+    rec.append({'file': rid, 'time': today, 'items': items, 'raw': raw, 'hint': hint})
     save(f'{DATA}/receipts.json', rec)
-    return items
+    return items, hint
 
 
 def notify(title, msg):
@@ -189,12 +204,12 @@ if __name__ == '__main__':
     with llm() if files else contextlib.nullcontext():
         for f in files:
             try:
-                items = intake(f)
+                items, hint = intake(f)
             except Exception as e:  # LLM down or unparsable: log, retry on next cron run
                 print(f'{f}: {e}', file=sys.stderr)
                 notify('receipt failed, will retry', f'{os.path.basename(f)}: {e}')
                 continue
             if items:
-                notify(f'{len(items)} items added', ', '.join(i['name'] for i in items))
+                notify(f'{len(items)} Artikel' + (' ⚠' if hint else ''), ', '.join(i['name'] for i in items) + (f'\n⚠ {hint}' if hint else ''))
             else:
-                notify('no receipt found', load(f'{DATA}/receipts.json', [])[-1]['raw'][:200])
+                notify('kein Bon erkannt', hint or load(f'{DATA}/receipts.json', [])[-1]['raw'][:200])

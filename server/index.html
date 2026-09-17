@@ -96,6 +96,6 @@ async function load(){const s=await (await fetch('/api/state')).json();S=s;const
   return `<details data-d="v${g}" ${openDays.has('v'+g)||!openDays.size?'open':''}><summary>${g}<small>${l.length}</small></summary><ul>${l.map(row).join('')}</ul></details>`}).join('')||'<small>leer</small>';
  const days={};for(const r of s.receipts)(days[r.time]??=[]).push(r);
  $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${openDays.has(d)||(n==0&&!openDays.size)?'open':''}><summary>${de(d)}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${
-  days[d].slice().reverse().map(r=>`<li><img src="/receipts/${r.file}" onclick="show('${r.file}')"><span><small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>'}
+  days[d].slice().reverse().map(r=>`<li><img src="/receipts/${r.file}" onclick="show('${r.file}')"><span><small>${r.items.length} Artikel</small>${r.hint?`<br><small class="warn">⚠ ${r.hint}</small>`:'<br><small>Foto ok</small>'}<details class="sub"><summary>Details</summary><small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></details></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>'}
 load();setInterval(load,10000);
 </script></body></html>

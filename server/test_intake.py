@@ -1,14 +1,16 @@
 from intake import parse_items
 raw = '```json\n[{"name":"Ba Banane","qty":"0,8","unit":"kg","category":"produce"},{"name":"","qty":1},{"name":"H-Milch","qty":2,"unit":"1L","category":"milk"}]\n```'
-items = parse_items(raw, {'ba banane': 'Banane'})
-assert parse_items('[{"raw":"GQ EIER XL BODEN","name":"GQ Eier"}]', {'gq eier xl boden': 'Eier XL Bodenhaltung'})[0]['name'] == 'Eier XL Bodenhaltung'
+items, hint = parse_items(raw, {'ba banane': 'Banane'})
+assert hint == ''
+assert parse_items('[{"raw":"GQ EIER XL BODEN","name":"GQ Eier"}]', {'gq eier xl boden': 'Eier XL Bodenhaltung'})[0][0]['name'] == 'Eier XL Bodenhaltung'
 assert [i['name'] for i in items] == ['Banane', 'H-Milch'], items
 assert items[0]['qty'] == 1.0 and items[0]['category'] == 'produce'   # "0,8" unparsable -> 1
 assert items[1]['qty'] == 2.0 and items[1]['category'] == 'other'     # unknown category -> other
 print('ok')
-assert parse_items('Sorry, this image shows a cat, not a receipt.', {}) == []
+assert parse_items('Sorry, this image shows a cat, not a receipt.', {}) == ([], '')
+assert parse_items('{"hinweis": "unscharf", "items": [{"name": "Brot"}]}', {})[1] == 'unscharf'
 print('ok2')
-assert parse_items('[{"raw":"TRINKHALM","name":"Trinkhalm"},{"name":"Eier"}]', {'trinkhalm': ''}) == [{'raw': '', 'name': 'Eier', 'qty': 1.0, 'unit': 'Stück', 'category': 'other'}]
+assert parse_items('[{"raw":"TRINKHALM","name":"Trinkhalm"},{"name":"Eier"}]', {'trinkhalm': ''})[0] == [{'raw': '', 'name': 'Eier', 'qty': 1.0, 'unit': 'Stück', 'category': 'other'}]
 print('ok3')
 from intake import status
 assert status({'expires': '2026-09-10', 'category': 'meat'}, '2026-09-11') == 'bad'
