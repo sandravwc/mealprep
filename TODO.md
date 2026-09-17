@@ -19,13 +19,15 @@ Hardware reality: 12 GB variant (11 GB usable), Android 15, Termux sshd already 
 - [x] crond service enabled
 - [x] syncthing service enabled, GUI :8384, folders `mealprep-receipts` + `mealprep-fridge`. Device ID in `docs/server.md`
 - [x] llama.cpp CPU build: `~/mealprep/llama.cpp/build-cpu/bin/{llama-server,llama-bench,llama-mtmd-cli}`
-- [ ] llama.cpp OpenCL build in `build-ocl`, does Adreno 730 load at all
+- [x] llama.cpp OpenCL build in `build-ocl`. Builds, but no platform: Android linker namespace blocks `/vendor/lib64/libOpenCL.so`, and Termux `opencl-vendor-driver` copy loads with no usable exports. Adreno 730 GPU = dead from Termux. CPU only
 - [x] Models in `~/mealprep/models`: gemma-4-E4B-it-Q4_0 (4.6 GB), mmproj Q8_0, PaddleOCR-VL-1.6 + mmproj
 - [x] `llama-bench` E4B Q4_0 CPU, pp512/tg128: 4 thr = 12.8 / 6.7 tok/s, 8 thr = 24.4 / 4.9 tok/s. Battery temp 39→40 °C. Use 8 thr for image jobs (pp dominates)
 - [x] `termux-notification` works (but pops on Poco only, hence ntfy)
+- [x] Vision smoke test via `llama-server --jinja` + `chat_template_kwargs.enable_thinking=false`: synthetic REWE receipt → 7/7 items as JSON. 189 prompt tok @ 15 tok/s, 320 gen tok @ 4.1 tok/s, 90 s wall. Without `enable_thinking=false` it burns the whole budget thinking
+- [x] ntfy.sh topic generated, stored in `~/mealprep/.env` on Poco (not in repo). Test push sent
 - [ ] Daily driver: Syncthing app, pair with Poco, share both folders. Camera app with save-folder setting (Open Camera) + home shortcut
-- [ ] ntfy app on daily driver, pick topic, test `curl -d test ntfy.sh/<topic>` from Poco
-- [ ] Verify sshd/syncthing/crond survive a reboot
+- [ ] ntfy app on daily driver, subscribe to topic from `.env`, confirm test push arrived
+- [ ] Reboot Poco once, verify sshd/syncthing/crond come back (Termux:Boot)
 - [ ] Poll `receipts/` from cron every minute → trigger intake job (phase 1)
 
 ## 0b. Model eval (before writing intake code)
@@ -84,6 +86,6 @@ NPU verdict (2026-09): **not usable from Termux on 8 Gen 1.**
 
 ## Open questions
 
-- Does OpenCL on Adreno 730 work at all in Termux? Upstream lists 750+ only
 - How much does E4B throttle on SD8 Gen 1 with no cooling?
-- German receipt abbreviations: does E4B alone resolve "H-MILCH 3,5%" or does it need the mapping cache from day one?
+- German receipt abbreviations: E4B kept "Ba Banane" literal and swapped one price column on the synthetic test. Prompt few-shot + mapping cache needed from day one
+- Does OpenCL on Adreno 730 work at all in Termux? No (see phase 0). Revisit only via an Android APK
