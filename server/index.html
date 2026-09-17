@@ -48,9 +48,9 @@ async function load(){const s=await (await fetch('/api/state')).json();const tod
  const row=i=>`<li class="${cls[i.status]}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${i.expires}</small></span><button onclick="rm('${i.id}')">weg</button></li>`;
  $('inv').innerHTML=['bad','expired','soon','ok'].map(t=>{const l=s.inventory.filter(i=>i.status==t).sort((a,b)=>a.expires<b.expires?-1:1);
   return l.length?`<h2>${tier[t]} <small>${l.length}</small></h2><ul>${l.map(row).join('')}</ul>`:''}).join('')||'<small>leer</small>';
- const open=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
+ const openDays=new Set([...document.querySelectorAll('details[open]')].map(d=>d.dataset.d));
  const days={};for(const r of s.receipts)(days[r.time]??=[]).push(r);
- $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${open.has(d)||(n==0&&!open.size)?'open':''}><summary>${d}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${
+ $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${openDays.has(d)||(n==0&&!openDays.size)?'open':''}><summary>${d}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${
   days[d].slice().reverse().map(r=>`<li><img src="/receipts/${r.file}" onclick="show('${r.file}')"><span>${r.file.slice(9,11)}:${r.file.slice(11,13)} <small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>'}
 load();setInterval(load,10000);
 </script></body></html>
