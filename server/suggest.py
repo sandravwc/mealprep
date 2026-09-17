@@ -7,13 +7,16 @@ SEASON = {12: 'Winter', 1: 'Winter', 2: 'Winter', 3: 'Frühling', 4: 'Frühling'
           6: 'Sommer', 7: 'Sommer', 8: 'Sommer', 9: 'Herbst', 10: 'Herbst', 11: 'Herbst'}
 
 
-def build_prompt(inv, history, today):
+def build_prompt(inv, history, today, profile=''):
     inv = sorted(inv, key=lambda i: i['expires'])
     stock = '\n'.join(f"- {i['name']} ({i['qty']:g} {i['unit']}, haltbar bis {i['expires']})" for i in inv)
     recent = [h for h in history if h['time'] >= time.strftime('%Y-%m-%d', time.localtime(time.time() - 14 * 86400))]
     cooked = ', '.join(h['title'] for h in recent if h.get('made')) or 'nichts erfasst'
     skipped = ', '.join(h['title'] for h in recent if not h.get('made')) or 'nichts'
+    liked = ', '.join(h['title'] for h in history if h.get('rating') == 'up') or 'keine Angabe'
+    disliked = ', '.join(h['title'] for h in history if h.get('rating') == 'down') or 'keine Angabe'
     return (f"Heute ist {today}, {SEASON[int(today[5:7])]}. Vorrat (zuerst ablaufend):\n{stock}\n\n"
+            f"Geschmacksprofil: {profile.strip() or 'keine Angabe'}\nHat geschmeckt: {liked}\nHat nicht geschmeckt: {disliked}\n"
             f"In den letzten 14 Tagen gekocht: {cooked}. Vorgeschlagen aber nicht gekocht: {skipped}.\n\n"
             "Schlage 2 Abendessen vor. Regeln: bald ablaufende Zutaten zuerst verbrauchen. Nur Zutaten aus dem Vorrat "
             "plus Grundzutaten (Salz, Pfeffer, Öl, Gewürze). Nährstoffbalance über die Woche beachten. Wiederhole nichts "
@@ -46,7 +49,11 @@ if __name__ == '__main__':
     if not inv:
         sys.exit('empty inventory, nothing to suggest')
     hist = load(f'{DATA}/suggestions.json', [])
-    raw = ask(build_prompt(inv, hist, today))
+    try:
+        profile = open(f'{DATA}/profile.txt').read()
+    except FileNotFoundError:
+        profile = ''
+    raw = ask(build_prompt(inv, hist, today, profile))
     sugs = parse(raw)
     if not sugs:
         sys.exit(f'no suggestions parsed: {raw[:200]}')

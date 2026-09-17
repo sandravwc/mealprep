@@ -17,6 +17,18 @@ def load(p, default):
         return default
 
 
+def read_profile():
+    try:
+        return open(f'{DATA}/profile.txt').read()
+    except FileNotFoundError:
+        return ''
+
+
+def save_json(p, d):
+    json.dump(d, open(p + '.tmp', 'w'), ensure_ascii=False, indent=1)
+    os.replace(p + '.tmp', p)
+
+
 def run_intake(path):
     subprocess.run(['python3', f'{HERE}/intake.py', path])
     with lock:
@@ -43,7 +55,8 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {'inventory': load(f'{DATA}/inventory.json', []),
                                    'receipts': [{k: v for k, v in r.items() if k != 'raw'} for r in recs],
                                    'pending': sorted(pending),
-                                   'suggestions': load(f'{DATA}/suggestions.json', [])})
+                                   'suggestions': load(f'{DATA}/suggestions.json', []),
+                                   'profile': read_profile()})
         if p.startswith('/receipts/') and '..' not in p:
             try:
                 return self.send(200, open(f'{RECEIPTS}/{p[10:]}', 'rb').read(), 'image/jpeg')
@@ -63,6 +76,18 @@ class H(BaseHTTPRequestHandler):
                 pending.add(name)
             threading.Thread(target=run_intake, args=(f'{RECEIPTS}/{name}',), daemon=True).start()
             return self.send(202, {'file': name})
+        if p == '/api/profile':
+            open(f'{DATA}/profile.txt', 'w').write(body.decode()[:2000])
+            return self.send(200, {'ok': True})
+        if p.startswith('/api/rate/'):  # /api/rate/<id>/up|down
+            sid, val = (p[10:].split('/') + [''])[:2]
+            with lock:
+                sug = load(f'{DATA}/suggestions.json', [])
+                for s in sug:
+                    if s['id'] == sid:
+                        s['rating'] = val if val in ('up', 'down') else None
+                save_json(f'{DATA}/suggestions.json', sug)
+            return self.send(200, {'ok': True})
         if p.startswith('/api/made/'):  # mark cooked, drop used ingredients from stock
             with lock:
                 sug = load(f'{DATA}/suggestions.json', [])
