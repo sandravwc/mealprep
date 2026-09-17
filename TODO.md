@@ -61,21 +61,29 @@ PWA at http://poco:8090 (`server/app.py`), llama-server as runit service, `serve
 - [ ] Real receipts from REWE/Edeka/Aldi/Lidl, score, tune prompt + aliases (phase 0b)
 - [ ] Add-to-home-screen: plain HTTP gives a bookmark shortcut, not standalone. Fine for now. Tailscale HTTPS later if it bugs you
 
-## 2. Suggest + notify
+## 2. Suggest + notify (shipped 2026-09-17)
 
-- [ ] Seasonal produce table for region, hardcoded
-- [ ] Weather from local API, inject into prompt
-- [ ] Meal history `history.json`: what was cooked, when, cuisine, protein, technique
-- [ ] Prompt: inventory + expiring-soon + history + weather → 1-3 suggestions, JSON, only ingredients on hand
-- [ ] Novelty rule: change one axis per suggestion (ingredient OR technique OR cuisine), never all
-- [ ] Nutrition balance check across last 7 d before suggesting
-- [ ] Daily notification ~17:00 with suggestions and action buttons
+`server/suggest.py`, cron 17:00. Text-only prompt, ~90 s when LLM idle.
+
+- [x] Season from month, in prompt. Produce table skipped, model knows seasons
+- [ ] Weather. Skipped for v1, add open-meteo one-liner when you miss it
+- [x] History = `data/suggestions.json` with `made` flag. Cooked + skipped last 14 d go into the prompt
+- [x] Prompt: stock sorted by expiry + history + season → 2 dinners, JSON, `uses` lists stock names
+- [x] Novelty rule in prompt: exactly one of two changes one axis. First run: "neu: Curry-Gewürz". Works
+- [x] Nutrition balance: one sentence in prompt. No scoring. Judge after a month
+- [x] ntfy push "Heute kochen?" with both titles, click opens PWA
+- [ ] ntfy action buttons on the push itself. Now: open PWA, tap "gekocht"
 
 ## 3. Consumption loop
 
-- [ ] "Made it" button on notification → decrement ingredients, append history
-- [ ] Weekly "what's gone?" notification, batch-confirm expired/used items
-- [ ] NFC tag in kitchen → launches receipt capture (day) / made-it (evening)
+- [x] "gekocht" button in PWA → `made=true`, removes `uses` items from stock (whole item, no partial qty)
+- [x] "weg" button per stock item
+
+## 3. Consumption loop
+
+- [ ] Partial decrement (used 2 of 10 eggs). Now all-or-nothing
+- [ ] Weekly "what's gone?" push listing expired items, batch-confirm
+- [ ] NFC tag / home-screen shortcut → PWA
 
 ## 4. Secondary intake
 

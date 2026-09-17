@@ -14,3 +14,5 @@
 - Services: `llama` (:8080 localhost only), `mealprep` (:8090 LAN). Logs `$PREFIX/var/log/sv/<name>/current`
 - Data: `~/mealprep/data/{inventory,receipts,aliases}.json`, images `~/mealprep/receipts/`
 - Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`
+- Suggest manually: `python3 ~/mealprep/repo/server/suggest.py`. Cron 17:00 daily
+- Mock stock was added 2026-09-17 with `receipt: "mock"`, delete via "weg" or filter inventory.json
