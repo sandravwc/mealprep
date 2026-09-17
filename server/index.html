@@ -93,7 +93,7 @@ async function load(){const s=await (await fetch('/api/state')).json();S=s;const
  const row=i=>`<li class="${cls[i.status]}"><span>${i.name} <small>${i.qty} ${i.unit} · bis ${de(i.expires)}${tag[i.status]?' · <b>'+tag[i.status]+'</b>':''}</small></span><button onclick="rm('${i.id}')">weg</button></li>`;
  const groups={};for(const i of s.inventory)(groups[grp(shelf(i.category))]??=[]).push(i);
  $('inv').innerHTML=order.filter(g=>groups[g]).map(g=>{const l=groups[g].sort((a,b)=>a.expires<b.expires?-1:1);
-  return `<h2>${g} <small>${l.length}</small></h2><ul>${l.map(row).join('')}</ul>`}).join('')||'<small>leer</small>';
+  return `<details data-d="v${g}" ${openDays.has('v'+g)||!openDays.size?'open':''}><summary>${g}<small>${l.length}</small></summary><ul>${l.map(row).join('')}</ul></details>`}).join('')||'<small>leer</small>';
  const days={};for(const r of s.receipts)(days[r.time]??=[]).push(r);
  $('rec').innerHTML=Object.keys(days).sort().reverse().map((d,n)=>`<details data-d="${d}" ${openDays.has(d)||(n==0&&!openDays.size)?'open':''}><summary>${de(d)}<small>${days[d].length} Bon${days[d].length>1?'s':''}</small></summary><ul>${
   days[d].slice().reverse().map(r=>`<li><img src="/receipts/${r.file}" onclick="show('${r.file}')"><span><small>${r.items.map(i=>i.name).join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>'}
