@@ -123,11 +123,11 @@ def intake(path):
 def notify(title, msg):
     if 'NTFY_TOPIC' not in ENV:
         return
-    hdr = {'Title': title, 'Click': ENV.get('BASE_URL', '')}
-    try:
+    body = {'topic': ENV['NTFY_TOPIC'], 'title': title, 'message': msg, 'click': ENV.get('BASE_URL', '')}
+    try:  # JSON body, headers cannot carry umlauts
         urllib.request.urlopen(urllib.request.Request(
-            f"https://ntfy.sh/{ENV['NTFY_TOPIC']}", msg.encode(), hdr), timeout=15)
-    except OSError as e:
+            'https://ntfy.sh', json.dumps(body, ensure_ascii=False).encode(), {'Content-Type': 'application/json'}), timeout=15)
+    except (OSError, ValueError) as e:
         print('ntfy failed:', e, file=sys.stderr)
 
 
