@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Receipt photo -> inventory.json. data/aliases.json: {"raw line or name, lowercase": "canonical name" | "" to drop}. Usage: intake.py [--redo] [file ...]; no args = every unprocessed file in receipts/."""
-import base64, fcntl, json, os, sys, time, urllib.request, uuid
+import base64, contextlib, fcntl, json, os, subprocess, sys, time, urllib.request, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import load_config  # noqa: E402
 
@@ -32,6 +32,46 @@ def profile_text(profile):
     if profile.get('text', '').strip():
         parts.append(profile['text'].strip())
     return '; '.join(parts)
+
+
+LLAMA = [f'{HOME}/llama.cpp/build-cpu/bin/llama-server', '-m', f'{HOME}/models/gemma-4-E4B-it-Q4_0.gguf',
+         '--mmproj', f'{HOME}/models/mmproj-gemma-4-E4B-it-Q8_0.gguf', '--jinja', '-t', '8', '-c', '4096',
+         '--host', '127.0.0.1', '--port', '8080', '--log-verbosity', '0']
+
+
+def llm_up():
+    try:
+        return b'ok' in urllib.request.urlopen(LLM.rsplit('/v1', 1)[0] + '/health', timeout=3).read()
+    except OSError:
+        return False
+
+
+@contextlib.contextmanager
+def llm():
+    """Start llama-server for the duration of a job, stop it after. 5 GB resident all day got Termux killed by
+    HyperOS's low-memory cleaner twice. Callers hold the job lock, so nobody else needs the server meanwhile."""
+    proc = None
+    if not llm_up():
+        proc = subprocess.Popen(LLAMA, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(60):
+            if llm_up():
+                break
+            time.sleep(2)
+        else:
+            proc.terminate()
+            raise RuntimeError('llama-server did not come up')
+    try:
+        yield
+    finally:
+        if proc:
+            proc.terminate()
+            proc.wait(timeout=30)
+
+
+def job_lock():
+    _lock = open(f'{DATA}/.lock', 'w')  # handle must stay referenced, else GC closes it and drops the lock
+    fcntl.flock(_lock, fcntl.LOCK_EX)  # ponytail: one job at a time, fine for one household
+    return _lock
 
 
 def cats():
@@ -133,8 +173,7 @@ def notify(title, msg):
 
 if __name__ == '__main__':
     os.makedirs(DATA, exist_ok=True)
-    _lock = open(f'{DATA}/.lock', 'w')  # handle must stay referenced, else GC closes it and drops the lock
-    fcntl.flock(_lock, fcntl.LOCK_EX)  # ponytail: one intake at a time, fine for one household
+    _lock = job_lock()
     args = sys.argv[1:]
     if args and args[0] == '--redo':  # drop old records for the given files, then read them again
         names = {os.path.basename(a) for a in args[1:]}
@@ -149,7 +188,8 @@ if __name__ == '__main__':
         and time.time() - os.path.getmtime(f'{RECEIPTS}/{f}') > 10)  # skip files still syncing
     for f in files:
         try:
-            items = intake(f)
+            with llm():
+                items = intake(f)
         except Exception as e:  # LLM down or unparsable: log, retry on next cron run
             print(f'{f}: {e}', file=sys.stderr)
             notify('receipt failed, will retry', f'{os.path.basename(f)}: {e}')

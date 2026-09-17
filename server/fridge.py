@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Fridge/pantry photo -> proposals.json (add/remove suggestions), never touches stock directly.
 Usage: fridge.py [file ...]; no args = every unprocessed file in fridge/."""
-import base64, fcntl, json, os, sys, time, urllib.request, uuid
+import base64, json, os, sys, time, urllib.request, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from intake import DATA, HOME, LLM, cats, load, save, notify  # noqa: E402
+from intake import DATA, HOME, LLM, cats, load, save, notify, llm, job_lock  # noqa: E402
 
 FRIDGE = f'{HOME}/fridge'
 PERISHABLE = {'produce', 'dairy', 'meat', 'fish', 'bread', 'eggs'}  # only these get "remove?" proposals
@@ -87,8 +87,7 @@ def close_scan(state):
 
 if __name__ == '__main__':
     os.makedirs(FRIDGE, exist_ok=True)
-    _lock = open(f'{DATA}/.lock', 'w')
-    fcntl.flock(_lock, fcntl.LOCK_EX)
+    _lock = job_lock()
     state = load(f'{DATA}/fridge.json', {'done': [], 'misses': {}})
     state.setdefault('photos', [])
     files = [a for a in sys.argv[1:] if os.path.basename(a) not in state['done']] or sorted(
@@ -97,7 +96,8 @@ if __name__ == '__main__':
         and time.time() - os.path.getmtime(f'{FRIDGE}/{f}') > 10)
     for f in files:
         try:
-            seen = parse_seen(ask_llm(f))
+            with llm():
+                seen = parse_seen(ask_llm(f))
         except Exception as e:
             print(f'{f}: {e}', file=sys.stderr)
             notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
