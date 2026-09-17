@@ -12,11 +12,12 @@ SESSION = 3600  # photos within an hour = one scan of the same kitchen
 
 
 def prompt():
-    return ('Foto von einem Kühlschrankfach, einer Kühlschranktür oder einem Vorratsregal. Liste jedes Lebensmittel und '
-            'Getränk auf, das du sicher erkennst, als JSON-Array von {name, category}. category ist eines von '
-            + str(list(cats())) + '. name auf Deutsch, so wie es auf der Packung steht, Marke wenn lesbar. Keine '
-            'Sammelbegriffe, keine Behälter mit unsichtbarem Inhalt, keine Alufolie, nichts Erfundenes, jedes Produkt nur '
-            'einmal. Nur JSON ausgeben.')
+    return ('Foto von einem Kühlschrankfach, einer Kühlschranktür oder einem Vorratsregal. Antworte nur mit einem '
+            'JSON-Objekt {"hinweis": string, "items": [{name, category}]}. items: jedes Lebensmittel und Getränk, das du '
+            'sicher erkennst; category ist eines von ' + str(list(cats())) + '; name auf Deutsch, wie es auf der Packung '
+            'steht, Marke wenn lesbar; keine Sammelbegriffe, keine Behälter mit unsichtbarem Inhalt, keine Alufolie, nichts '
+            'Erfundenes, jedes Produkt nur einmal. hinweis: leer wenn das Foto gut ist, sonst kurz was stört: unscharf, '
+            'zu dunkel, zu weit weg, Etiketten abgewandt, zu viel im Bild.')
 
 
 def ask_llm(img):
@@ -31,15 +32,27 @@ def ask_llm(img):
 
 
 def parse_seen(text):
-    a, b = text.find('['), text.rfind(']')
+    """-> (items, hint). Accepts the {"hinweis", "items"} object or a bare array."""
+    a, b = text.find('{'), text.rfind('}')
+    hint, raw = '', None
+    if a >= 0 and b > a:
+        try:
+            obj = json.loads(text[a:b + 1])
+            if isinstance(obj, dict) and 'items' in obj:
+                hint, raw = str(obj.get('hinweis') or '').strip(), obj['items']
+        except ValueError:
+            pass
+    if raw is None:
+        a, b = text.find('['), text.rfind(']')
+        raw = json.loads(text[a:b + 1]) if a >= 0 and b > a else []
     out, known, seen = [], cats(), set()
-    for it in json.loads(text[a:b + 1]) if a >= 0 and b > a else []:
+    for it in raw:
         name = str(it.get('name', '') if isinstance(it, dict) else it).strip()
         if name and name.lower() not in seen:
             seen.add(name.lower())
             cat = it.get('category') if isinstance(it, dict) else None
             out.append({'name': name, 'category': cat if cat in known else 'other'})
-    return out
+    return out, hint
 
 
 CONTAINER = re.compile(r'^(kleine?r?s?|große?r?s?|blaue?s?|rote?s?|grüne?s?|weiße?s?|gelbe?s?|schwarze?s?|jar|jars|glas|gläser|dose|dosen|'
@@ -130,7 +143,13 @@ if __name__ == '__main__':
     with llm() if files else contextlib.nullcontext():
         for f in files:
             try:
-                seen = food_only(parse_seen(ask_llm(f)))
+                seen, hint = parse_seen(ask_llm(f))
+                kept = food_only(seen)
+                if not hint and len(kept) < 3:
+                    hint = 'wenig erkannt: näher ran, Etiketten zur Kamera, ein Fach pro Foto'
+                elif not hint and len(kept) < len(seen) / 2:
+                    hint = 'vieles unklar: Etiketten zur Kamera, weniger im Bild'
+                seen = kept
             except Exception as e:
                 print(f'{f}: {e}', file=sys.stderr)
                 notify('Schrank-Foto fehlgeschlagen, wird wiederholt', str(e)[:200])
@@ -144,8 +163,9 @@ if __name__ == '__main__':
             scan['last'] = time.time()
             state['scan'] = scan
             state['done'].append(os.path.basename(f))
-            state['photos'].append({'file': os.path.basename(f), 'time': time.strftime('%Y-%m-%d %H:%M'), 'seen': [x['name'] for x in seen]})
+            state['photos'].append({'file': os.path.basename(f), 'time': time.strftime('%Y-%m-%d %H:%M'), 'seen': [x['name'] for x in seen], 'hint': hint})
             save(f'{DATA}/fridge.json', state)
-            notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu', ', '.join(p['name'] for p in props) or 'nichts Neues')
+            notify(f'Schrank: {len(seen)} gesehen, {len(props)} neu' + (' ⚠' if hint else ''),
+                   (', '.join(p['name'] for p in props) or 'nichts Neues') + (f'\n⚠ {hint}' if hint else ''))
     if close_scan(state):
             save(f'{DATA}/fridge.json', state)

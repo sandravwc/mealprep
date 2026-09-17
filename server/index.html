@@ -8,7 +8,7 @@ body>details>summary{font-size:15px;color:#999;text-transform:uppercase;margin-t
 .cams{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:8px}label.cam{flex:1;background:#2a6;color:#fff;text-align:center;padding:18px 4px;border-radius:12px;font-size:17px;box-shadow:0 4px 16px #000a}label.alt{background:#369}
 input[type=file]{display:none}
 ul{list-style:none;padding:0;margin:0}li{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #222}
-li span{flex:1}small{color:#888}small b{font-weight:600}.soon small b{color:#e94}.gone small b{color:#e44}.gone span{color:#e44}
+li span{flex:1}small{color:#888}small.warn{color:#e94}small b{font-weight:600}.soon small b{color:#e94}.gone small b{color:#e44}.gone span{color:#e44}
 button{background:#333;color:#eee;border:0;border-radius:8px;padding:8px 12px}button.on{background:#2a6}
 textarea{width:100%;box-sizing:border-box;background:#222;color:#eee;border:0;border-radius:8px;padding:8px;font:inherit;margin:6px 0}
 .date{color:#fc6;font-weight:600}
@@ -77,7 +77,7 @@ async function load(){const s=await (await fetch('/api/state')).json();S=s;const
  $('props').innerHTML=pr.map(p=>`<li><span>${p.kind=='add'?'+ ':'− '}${p.name} <small>${p.kind=='add'?p.category:'nicht mehr gesehen'} · ${dt(p.time)}</small></span><button onclick="prop('${p.id}','accept')">✓</button><button onclick="prop('${p.id}','reject')">✕</button></li>`).join('');
  const fdays={};for(const r of (s.fridge||[]))(fdays[r.time.slice(0,10)]??=[]).push(r);
  $('fr').innerHTML=Object.keys(fdays).sort().reverse().map((d,n)=>`<details data-d="f${d}" ${openDays.has('f'+d)||(n==0&&!openDays.size)?'open':''}><summary>${de(d)}<small>${fdays[d].length} Foto${fdays[d].length>1?'s':''}</small></summary><ul>${
-  fdays[d].slice().reverse().map(r=>`<li><img src="/fridge/${r.file}" onclick="show('${r.file}','fridge')"><span>${r.time.slice(11)} <small>${r.seen.join(', ')||'nichts erkannt'}</small></span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>';
+  fdays[d].slice().reverse().map(r=>`<li><img src="/fridge/${r.file}" onclick="show('${r.file}','fridge')"><span>${r.time.slice(11)} <small>${r.seen.join(', ')||'nichts erkannt'}</small>${r.hint?`<br><small class="warn">⚠ ${r.hint}</small>`:''}</span></li>`).join('')}</ul></details>`).join('')||'<small>keine</small>';
  $('invn').textContent=s.inventory.length;
  const shelf=n=>{const c=(S.config||{}).categories||{};return (c[n]||[14,30])[0]};
  const grp=d=>d<=3?'Verdirbt schnell':d<=10?'Hält eine Woche':d<=60?'Hält einen Monat':'Überlebt dich';

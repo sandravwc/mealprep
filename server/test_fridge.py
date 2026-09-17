@@ -1,6 +1,8 @@
 from fridge import adds, removes, parse_seen, same, CONTAINER
 assert same('Milch', 'H-Milch') and not same('Ei', 'Eiersalat') and same('Feta', 'feta')
-seen = parse_seen('```json [{"name":"Milch","category":"dairy"},{"name":"Gurke","category":"nope"},{"name":""},{"name":"milch"}]```')
+seen, hint = parse_seen('```json [{"name":"Milch","category":"dairy"},{"name":"Gurke","category":"nope"},{"name":""},{"name":"milch"}]```')
+assert hint == ''
+assert parse_seen('{"hinweis": "unscharf", "items": [{"name": "Brot"}]}') == ([{'name': 'Brot', 'category': 'other'}], 'unscharf')
 assert [s['name'] for s in seen] == ['Milch', 'Gurke'] and seen[1]['category'] == 'other'
 inv = [{'id': 'a', 'name': 'H-Milch', 'category': 'dairy'}, {'id': 'b', 'name': 'Feta', 'category': 'dairy'}, {'id': 'c', 'name': 'Reis', 'category': 'pantry'}]
 assert [p['name'] for p in adds(seen, inv)] == ['Gurke']
