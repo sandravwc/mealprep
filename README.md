@@ -58,6 +58,7 @@ server/intake.py         photo -> llama-server -> inventory.json, ntfy
 server/suggest.py        stock + history + profile -> 2 recipes -> suggestions.json, ntfy
 server/fridge.py         fridge photo -> seen items -> add/remove proposals, applied only on tap
 server/janitor.py        daily dedupe/junk pass, flags food past grace, never deletes food
+server/dyndns.py         public IP -> A record over the AutoDNS API, creds reused from acme.sh
 server/index.html        the whole UI, vanilla JS, German labels
 server/test_*.py         one assert-based check per script, run with python3
 docs/server.md           how the Poco is wired (services, paths, cron)
@@ -156,6 +157,11 @@ Certificate, once, on the Poco (`AUTODNS_USER/PASSWORD/CONTEXT` in the environme
 ```
 
 acme.sh renews from its own cron line and restarts the app.
+
+DynDNS: `dyndns.py` every 5 min asks the router over UPnP, else an
+account-free echo service, and rewrites the A record through the same AutoDNS
+bulk task when the IP changed. Reachable from outside once the router forwards
+8443 to the Poco.
 
 ## Install on the Poco
 
