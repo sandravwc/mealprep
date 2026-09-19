@@ -138,7 +138,8 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
   With HTTPS the PWA installs standalone and web push becomes possible.
 - HTTPS requests need a session: password form sets a cookie for a year,
   ntfy click links carry `?t=<AUTH_TOKEN>` and set the same cookie. Five wrong
-  passwords from one IP lock it for an hour. Every deny, fail and ban is one
+  passwords from one IP lock it for an hour. "abmelden" in the burger menu
+  clears the cookie, for a borrowed device. Every deny, fail and ban is one
   `AUTH ...` line with the IP in the service log, fail2ban-shaped for a future
   load balancer. Plain HTTP on 8090 has no auth, LAN only, never forward it.
 

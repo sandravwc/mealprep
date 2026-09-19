@@ -94,6 +94,12 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         p = self.path.split('?')[0]
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if p == '/logout':
+            self.send_response(303)
+            self.send_header('Set-Cookie', f'{auth.COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure')
+            self.send_header('Location', '/')
+            self.send_header('Content-Length', '0')
+            return self.end_headers()
         if p == '/login' and self.tls:
             ip = self.client_address[0]
             if auth.banned(ip):
