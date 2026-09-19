@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PWA + API. GET / (page), /api/state, /receipts/<file>; POST /upload (raw image body), /api/remove/<id>."""
-import json, os, ssl, subprocess, sys, threading, time, urllib.parse
+import json, os, subprocess, sys, threading, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -48,11 +48,20 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    @property
+    def tls(self):
+        """Public traffic arrives via HAProxy with X-Forwarded-Proto: https. Direct LAN HTTP has no such header."""
+        return self.headers.get('X-Forwarded-Proto') == 'https'
+
+    @property
+    def ip(self):
+        return self.headers.get('X-Forwarded-For', self.client_address[0]).split(',')[0].strip()
+
     def gate(self):
         """False = request already answered (login page, 401 or ban). Plain HTTP on the LAN stays open."""
         if not self.tls:
             return True
-        ip = self.client_address[0]
+        ip = self.ip
         if auth.banned(ip):
             print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} AUTH BANNED {ip} {self.path[:60]}', file=sys.stderr, flush=True)
             self.send(429, b'gesperrt', 'text/plain')
@@ -101,7 +110,7 @@ class H(BaseHTTPRequestHandler):
             self.send_header('Content-Length', '0')
             return self.end_headers()
         if p == '/login' and self.tls:
-            ip = self.client_address[0]
+            ip = self.ip
             if auth.banned(ip):
                 return self.send(429, b'gesperrt', 'text/plain')
             pw = urllib.parse.parse_qs(body.decode()).get('pw', [''])[0]
@@ -216,23 +225,9 @@ class H(BaseHTTPRequestHandler):
             super().log_message(fmt, *a)
 
 
-def serve(port, tls=None):
-    handler = type('H', (H,), {'tls': bool(tls)})
-    srv = ThreadingHTTPServer(('0.0.0.0', port), handler)
-    if tls:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(f'{tls}/fullchain.pem', f'{tls}/key.pem')
-        srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
-    srv.serve_forever()
-
-
 if __name__ == '__main__':
     os.makedirs(RECEIPTS, exist_ok=True)
     os.makedirs(FRIDGE, exist_ok=True)
     os.makedirs(DISHES, exist_ok=True)
-    tls = f'{HOME}/tls'
-    if os.path.exists(f'{tls}/fullchain.pem') and not auth.env().get('PASSWORD'):
-        print('PASSWORD missing in .env, not serving HTTPS', file=sys.stderr, flush=True)
-    elif os.path.exists(f'{tls}/fullchain.pem'):  # acme.sh installs here and restarts us on renewal
-        threading.Thread(target=serve, args=(int(os.environ.get('TLS_PORT', 8443)), tls), daemon=True).start()
-    serve(int(os.environ.get('PORT', 8090)))  # plain HTTP stays for the LAN and as fallback
+    # plain HTTP only. TLS is HAProxy's job (:8443 -> anubis :8923 -> here), see docs/server.md
+    ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', 8090))), H).serve_forever()
