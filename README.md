@@ -19,18 +19,18 @@ no database. Couple Python files and one HTML page. No React no nothing.
    Thumbs up/down teaches the profile. 
    Photo of dish can be taken and stored with recipe for future use after finished.
 
-```
+```txt
  daily driver phone                      poco f5 pro (termux, anywhere on LAN)
-┌──────────────────────┐                ┌──────────────────────────────────────┐
-│ browser (PWA)        │ POST /upload   │ app.py :8090 ─► intake.py / fridge.py│
-│  camera, stock,      ├───────────────►│      ▲               │               │
-│  recipes, profile    │◄───────────────┤      │               ▼               │
-│                      │ GET /api/state │ data/*.json    llama-server :8080    │
-│                      │                │      ▲        (started per job)      │
-│ ntfy app             │                │      │               │               │
-│  push + click ◄──────┼── ntfy.sh ◄────┤ suggest.py ◄─────────┘               │
-│                      │                │ janitor.py      cron 16:50 / 17:00   │
-└──────────────────────┘                └──────────────────────────────────────┘
+┌──────────────────────┐                ┌───────────────────────────────────────┐
+│ browser (PWA)        │ POST /upload   │ app.py :8090 ─► intake.py / fridge.py │
+│  camera, stock,      ├───────────────►│      ▲               │                │
+│  recipes, profile    │◄───────────────┤      │               ▼                │
+│                      │ GET /api/state │ data/*.json    llama-server :8080     │
+│                      │                │      ▲        (started per job)       │
+│ ntfy app             │                │      │               │                │
+│  push + click ◄──────┼── ntfy.sh ◄────┤ suggest.py ◄─────────┘                │
+│                      │                │ janitor.py      cron 16:50 / 17:00    │
+└──────────────────────┘                └───────────────────────────────────────┘
 ```
 
 ## Why this stack
@@ -51,7 +51,7 @@ no database. Couple Python files and one HTML page. No React no nothing.
 
 ## Layout
 
-```
+```txt
 server/app.py            PWA + API, ThreadingHTTPServer, ~120 lines
 server/config.py         defaults for categories [shelf, grace] and taste tags, overrides in data/config.json
 server/intake.py         photo -> llama-server -> inventory.json, ntfy
@@ -154,6 +154,7 @@ Certificate, once, on the Poco (`AUTODNS_USER/PASSWORD/CONTEXT` in the environme
 ~/.acme.sh/acme.sh --issue --dns dns_autodns -d poco.xn--bdk.dog
 ~/.acme.sh/acme.sh --install-cert -d poco.xn--bdk.dog --fullchain-file ~/mealprep/tls/fullchain.pem --key-file ~/mealprep/tls/key.pem --reloadcmd "SVDIR=$PREFIX/var/service sv restart mealprep"
 ```
+
 acme.sh renews from its own cron line and restarts the app.
 
 ## Install on the Poco
