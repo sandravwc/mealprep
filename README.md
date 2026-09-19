@@ -57,6 +57,7 @@ server/config.py         defaults for categories [shelf, grace] and taste tags, 
 server/intake.py         photo -> llama-server -> inventory.json, ntfy
 server/suggest.py        stock + history + profile -> 2 recipes -> suggestions.json, ntfy
 server/fridge.py         fridge photo -> seen items -> add/remove proposals, applied only on tap
+server/auth.py           password login, cookie session, token links for pushes, per-IP ban after 5 fails
 server/janitor.py        daily dedupe/junk pass, flags food past grace, never deletes food
 server/dyndns.py         public IP -> A record over the AutoDNS API, creds reused from acme.sh
 server/index.html        the whole UI, vanilla JS, German labels
@@ -135,6 +136,11 @@ Runtime data on the Poco, outside the repo: `~/mealprep/data/*.json`,
 - HTTPS on 8443 when `~/mealprep/tls/{fullchain,key}.pem` exist (Let's
   Encrypt via acme.sh DNS-01, AutoDNS), plain HTTP on 8090 stays for the LAN.
   With HTTPS the PWA installs standalone and web push becomes possible.
+- HTTPS requests need a session: password form sets a cookie for a year,
+  ntfy click links carry `?t=<AUTH_TOKEN>` and set the same cookie. Five wrong
+  passwords from one IP lock it for an hour. Every deny, fail and ban is one
+  `AUTH ...` line with the IP in the service log, fail2ban-shaped for a future
+  load balancer. Plain HTTP on 8090 has no auth, LAN only, never forward it.
 
 ## Config
 

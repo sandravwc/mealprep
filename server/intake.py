@@ -178,7 +178,10 @@ def intake(path):
 def notify(title, msg):
     if 'NTFY_TOPIC' not in ENV:
         return
-    body = {'topic': ENV['NTFY_TOPIC'], 'title': title, 'message': msg, 'click': ENV.get('BASE_URL', '')}
+    click = ENV.get('BASE_URL', '')
+    if click and ENV.get('AUTH_TOKEN'):
+        click += '/?t=' + ENV['AUTH_TOKEN']  # link logs the phone in, cookie set on first open
+    body = {'topic': ENV['NTFY_TOPIC'], 'title': title, 'message': msg, 'click': click}
     try:  # JSON body, headers cannot carry umlauts
         urllib.request.urlopen(urllib.request.Request(
             'https://ntfy.sh', json.dumps(body, ensure_ascii=False).encode(), {'Content-Type': 'application/json'}), timeout=15)

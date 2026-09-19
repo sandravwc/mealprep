@@ -104,7 +104,9 @@ Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the 
 - [x] Cert issued 2026-09-17 for `poco.xn--bdk.dog` (A → 192.168.1.106), Let's Encrypt via acme.sh `dns_autodns`. AutoDNS API user is a clone of the main user with zone read + zone update + zone bulk update (`0202001`, the one acme.sh needs). Renews itself, reloadcmd restarts `mealprep`. https://poco.xn--bdk.dog:8443 live, HTTP 8090 stays
 - [ ] Service worker + manifest icons → real standalone install
 - [x] DynDNS 2026-09-19: `server/dyndns.py` cron */5. UPnP on the TP-Link VX231v is off, so public IP comes from ifconfig.co / icanhazip. Rewrites the A record via AutoDNS `0202001`, TTL 300, creds from `~/.acme.sh/account.conf`
-- [ ] Router: forward TCP 8443 → 192.168.1.106. Then check NAT loopback: `curl https://poco.xn--bdk.dog:8443` from inside the LAN. If it fails, LAN uses `http://192.168.1.106:8090` or a second name on the LAN IP
+- [x] Router: Virtual Servers, TCP 8443 → 192.168.1.106. NAT loopback works
+- [x] Auth 2026-09-19: `server/auth.py`. Password + cookie, `?t=<AUTH_TOKEN>` on push links, in-app ban 5 fails/h per IP, `AUTH DENY|FAIL|BANNED <ip>` lines in the service log for fail2ban later
+- [ ] Load balancer in front, lab reasons, fail2ban reads the AUTH lines there. Not now
 - [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
 - [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`
 - [ ] Then ntfy becomes optional, keep as fallback or remove

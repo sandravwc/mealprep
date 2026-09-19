@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """PWA + API. GET / (page), /api/state, /receipts/<file>; POST /upload (raw image body), /api/remove/<id>."""
-import json, os, ssl, subprocess, sys, threading, time
+import json, os, ssl, subprocess, sys, threading, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from intake import status, load_profile  # noqa: E402
 from config import load_config, save_config  # noqa: E402
+import auth  # noqa: E402
 HOME = os.path.expanduser('~/mealprep')
 RECEIPTS, FRIDGE, DISHES, DATA = f'{HOME}/receipts', f'{HOME}/fridge', f'{HOME}/dishes', f'{HOME}/data'
 lock = threading.Lock()
@@ -35,20 +36,44 @@ def pending():
 
 
 class H(BaseHTTPRequestHandler):
+    set_cookie = False
+
     def send(self, code, body, ctype='application/json'):
         body = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(body)))
+        if self.set_cookie:
+            auth.set_cookie_header(self)
         self.end_headers()
         self.wfile.write(body)
 
+    def gate(self):
+        """False = request already answered (login page, 401 or ban). Plain HTTP on the LAN stays open."""
+        if not self.tls:
+            return True
+        ip = self.client_address[0]
+        if auth.banned(ip):
+            print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} AUTH BANNED {ip} {self.path[:60]}', file=sys.stderr, flush=True)
+            self.send(429, b'gesperrt', 'text/plain')
+            return False
+        if auth.authed(self):
+            return True
+        print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} AUTH DENY {ip} {self.command} {self.path[:60]}', file=sys.stderr, flush=True)
+        if self.path.startswith('/api/') or self.path.startswith('/upload'):
+            self.send(401, {'error': 'login'})
+        else:
+            self.send(200, (auth.LOGIN % '').encode(), 'text/html; charset=utf-8')
+        return False
+
     def do_GET(self):
         p = self.path.split('?')[0]
-        if p == '/':
-            return self.send(200, open(f'{HERE}/index.html', 'rb').read(), 'text/html; charset=utf-8')
         if p == '/manifest.json':
             return self.send(200, open(f'{HERE}/manifest.json', 'rb').read())
+        if not self.gate():
+            return
+        if p == '/':
+            return self.send(200, open(f'{HERE}/index.html', 'rb').read(), 'text/html; charset=utf-8')
         if p == '/api/state':
             recs = load(f'{DATA}/receipts.json', [])
             return self.send(200, {'inventory': [{**i, 'status': status(i)} for i in load(f'{DATA}/inventory.json', [])],
@@ -69,6 +94,24 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         p = self.path.split('?')[0]
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if p == '/login' and self.tls:
+            ip = self.client_address[0]
+            if auth.banned(ip):
+                return self.send(429, b'gesperrt', 'text/plain')
+            pw = urllib.parse.parse_qs(body.decode()).get('pw', [''])[0]
+            if auth.check_password(pw):
+                auth.attempts.pop(ip, None)
+                self.set_cookie = True
+                self.send_response(303)
+                auth.set_cookie_header(self)
+                self.send_header('Location', '/')
+                self.send_header('Content-Length', '0')
+                return self.end_headers()
+            n = auth.fail(ip)
+            print(f'{time.strftime("%Y-%m-%d %H:%M:%S")} AUTH FAIL from {ip} ({n}/{auth.FAILS})', file=sys.stderr, flush=True)
+            return self.send(200, (auth.LOGIN % '<small>falsch</small>').encode(), 'text/html; charset=utf-8')
+        if not self.gate():
+            return
         if p == '/upload':
             if not body:
                 return self.send(400, {'error': 'empty'})
@@ -168,7 +211,8 @@ class H(BaseHTTPRequestHandler):
 
 
 def serve(port, tls=None):
-    srv = ThreadingHTTPServer(('0.0.0.0', port), H)
+    handler = type('H', (H,), {'tls': bool(tls)})
+    srv = ThreadingHTTPServer(('0.0.0.0', port), handler)
     if tls:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(f'{tls}/fullchain.pem', f'{tls}/key.pem')
@@ -181,6 +225,8 @@ if __name__ == '__main__':
     os.makedirs(FRIDGE, exist_ok=True)
     os.makedirs(DISHES, exist_ok=True)
     tls = f'{HOME}/tls'
-    if os.path.exists(f'{tls}/fullchain.pem'):  # acme.sh installs here and restarts us on renewal
+    if os.path.exists(f'{tls}/fullchain.pem') and not auth.env().get('PASSWORD'):
+        print('PASSWORD missing in .env, not serving HTTPS', file=sys.stderr, flush=True)
+    elif os.path.exists(f'{tls}/fullchain.pem'):  # acme.sh installs here and restarts us on renewal
         threading.Thread(target=serve, args=(int(os.environ.get('TLS_PORT', 8443)), tls), daemon=True).start()
     serve(int(os.environ.get('PORT', 8090)))  # plain HTTP stays for the LAN and as fallback
