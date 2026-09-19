@@ -21,5 +21,5 @@
 - DynDNS state: `data/dyndns.ip`, force a rewrite with `python3 repo/server/dyndns.py --force`
 - Termux dead (ssh refused, phone pings): `adb shell am start -n com.termux/.HomeActivity`, services come back via profile.d. Reason: `adb shell dumpsys activity exit-info com.termux`
 - Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"
-- TLS: `~/mealprep/tls/{fullchain,key}.pem` from acme.sh (`~/.acme.sh`, creds in `account.conf` 0600), `deploy/install-cert.sh` bundles them into `haproxy.pem` and restarts haproxy, wired as reloadcmd. Reissue by hand: `~/.acme.sh/acme.sh --issue --server letsencrypt --dns dns_autodns -d poco.xn--bdk.dog`
+- TLS: `~/mealprep/tls/{fullchain,key}.pem` from acme.sh (`~/.acme.sh`, creds in `account.conf` 0600), `deploy/install-cert.sh` bundles them into `haproxy.pem` and restarts haproxy, wired as reloadcmd. Reissue by hand: `~/.acme.sh/acme.sh --issue --server letsencrypt --dns dns_autodns -d poco.xn--bdk.dog -d "*.poco.xn--bdk.dog"` (wildcard covers shoko./mealprep. subdomains; haproxy loads `~/haproxy.d/*.cfg`, backend by Host label)
 - Tailscale (disabled): `~/.tailscale/{tailscale,tailscaled}`, runit service `tailscaled`, build tags in `~/.tailscale/build-tags`, source `~/tailscale-src`
