@@ -11,7 +11,8 @@
 - Secrets (ntfy topic) live in `~/mealprep/.env` on the Poco, never in the repo
 - OpenCL: dead. Linker namespace blocks vendor driver from Termux. Don't retry without an APK
 - Deploy: `cd ~/mealprep/repo && git pull && sv restart mealprep` (SVDIR exported)
-- Service: `mealprep` (:8090 LAN). `llama` service exists but is disabled, jobs start their own. Logs `$PREFIX/var/log/sv/<name>/current`
+- Services: `mealprep` (:8090 LAN, plain), `anubis` (127.0.0.1:8923 -> 8090), `haproxy` (:8443 TLS -> anubis, stats 192.168.1.106:8404). `llama` exists but disabled, jobs start their own. Logs `$PREFIX/var/log/sv/<name>/current`
+- Run scripts and configs live in the repo: `deploy/`. Change config -> `git pull && sv restart haproxy` (or anubis)
 - Data: `~/mealprep/data/{inventory,receipts,aliases}.json`, images `~/mealprep/receipts/`
 - Manual intake: `python3 ~/mealprep/repo/server/intake.py [file]`
 - Suggest manually: `python3 ~/mealprep/repo/server/suggest.py`. Cron 17:00 daily
@@ -20,5 +21,5 @@
 - DynDNS state: `data/dyndns.ip`, force a rewrite with `python3 repo/server/dyndns.py --force`
 - Termux dead (ssh refused, phone pings): `adb shell am start -n com.termux/.HomeActivity`, services come back via profile.d. Reason: `adb shell dumpsys activity exit-info com.termux`
 - Taste profile: `data/profile.txt`, edit in PWA under "Geschmack"
-- TLS: `~/mealprep/tls/{fullchain,key}.pem` from acme.sh (`~/.acme.sh`, creds in `account.conf` 0600), app listens 8443 when present. Renewal restarts `mealprep` via reloadcmd. Reissue by hand: `~/.acme.sh/acme.sh --issue --server letsencrypt --dns dns_autodns -d poco.xn--bdk.dog`
+- TLS: `~/mealprep/tls/{fullchain,key}.pem` from acme.sh (`~/.acme.sh`, creds in `account.conf` 0600), `deploy/install-cert.sh` bundles them into `haproxy.pem` and restarts haproxy, wired as reloadcmd. Reissue by hand: `~/.acme.sh/acme.sh --issue --server letsencrypt --dns dns_autodns -d poco.xn--bdk.dog`
 - Tailscale (disabled): `~/.tailscale/{tailscale,tailscaled}`, runit service `tailscaled`, build tags in `~/.tailscale/build-tags`, source `~/tailscale-src`

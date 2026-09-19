@@ -23,14 +23,15 @@ nothing.
 ```txt
  daily driver phone (anywhere)              poco f5 pro (termux, home LAN)
 ┌──────────────────────┐                  ┌───────────────────────────────────────┐
-│ browser (PWA)        │ https :8443      │ app.py ─► intake.py / fridge.py       │
-│  camera, stock,      ├─────────────────►│  auth.py     ▲           │            │
-│  recipes, profile    │◄─────────────────┤              │           ▼            │
-│                      │ http :8090 (LAN) │ data/*.json     llama-server :8080    │
-│                      │                  │              ▲  (started per job)     │
-│ ntfy app             │                  │              │           │            │
-│  push + login link ◄─┼── ntfy.sh ◄──────┤ suggest.py ◄─────────────┘            │
-│                      │                  │ janitor.py  dyndns.py  acme.sh  cron  │
+│ browser (PWA)        │ https :8443      │ haproxy ─► anubis ─► app.py :8090     │
+│  camera, stock,      ├─────────────────►│  tls      bot pow    auth.py          │
+│  recipes, profile    │◄─────────────────┤                        │              │
+│                      │ http :8090 (LAN) │ data/*.json ◄──────────┤              │
+│                      │                  │      ▲       intake.py / fridge.py    │
+│ ntfy app             │                  │      │           │                    │
+│  push + login link ◄─┼── ntfy.sh ◄──────┤ suggest.py   llama-server :8080       │
+│                      │                  │ janitor.py   (started per job)        │
+│                      │                  │ dyndns.py  acme.sh  cron              │
 └──────────────────────┘                  └───────────────────────────────────────┘
 ```
 
@@ -48,16 +49,19 @@ nothing.
   tax.
 - ntfy for push: account-free, self-hostable, one HTTP POST. Web push would
   need a service worker and VAPID plumbing for the same result.
-- Own domain + Let's Encrypt over the AutoDNS API instead of a VPN or a
-  reverse proxy: nothing to install on the client, no port 80, renews itself.
+- Own domain + Let's Encrypt over the AutoDNS API instead of a VPN: nothing
+  to install on the client, no port 80, renews itself.
+- HAProxy for TLS and as the lab load balancer, Anubis in front of the app
+  as an on-prem bot filter. Both single static binaries, both run rootless in
+  Termux. Anubis does no TLS, so something has to sit before it anyway.
 - Flat JSON instead of SQLite: a household has hundreds of items, not
   millions. Everything loads in one `json.load`.
-- Python stdlib only: `http.server`, `ssl`, `urllib`, `json`, `fcntl`. Zero pip.
+- Python stdlib only: `http.server`, `urllib`, `json`, `fcntl`. Zero pip.
 
 ## Layout
 
 ```txt
-server/app.py            PWA + API, ThreadingHTTPServer, HTTP 8090 + HTTPS 8443
+server/app.py            PWA + API, ThreadingHTTPServer, plain HTTP 8090
 server/auth.py           password login, cookie session, token links for pushes, per-IP ban
 server/config.py         defaults for categories [shelf, grace], taste tags, meals; overrides in data/config.json
 server/intake.py         receipt photo -> llama-server -> inventory.json, ntfy; shared llm()/lock helpers
@@ -68,6 +72,9 @@ server/dyndns.py         public IP -> A record over the AutoDNS API, creds reuse
 server/index.html        the whole UI, vanilla JS, German labels
 server/manifest.json     PWA manifest
 server/test_*.py         one assert-based check per script, run with python3
+deploy/haproxy.cfg       TLS 8443 -> anubis, stats on the LAN
+deploy/anubis.env        anubis -> app 8090
+deploy/sv-*.run          runit run scripts, deploy/install-cert.sh = acme.sh reload hook
 docs/server.md           how the Poco is wired (services, paths, cron)
 docs/TODO.md             phases, decisions, dead ends
 ```
@@ -171,12 +178,16 @@ Endpoints:
 Transport and auth:
 
 - HTTP 8090: LAN only, no auth, never forward it.
-- HTTPS 8443: served when `~/mealprep/tls/{fullchain,key}.pem` exist and
-  `PASSWORD` is set. Password form sets a cookie for a year, ntfy click links
-  carry `?t=<AUTH_TOKEN>` and set the same cookie, "abmelden" clears it. Five
-  wrong passwords from one IP lock it for an hour in-process. Every deny,
-  fail and ban is one `AUTH ... <ip>` line in the service log, fail2ban-shaped
-  for a future load balancer.
+- HTTPS 8443: HAProxy terminates TLS with the acme.sh cert, sets
+  `X-Forwarded-Proto`, `X-Forwarded-For`, `X-Real-IP`, hands off to Anubis.
+  Anubis challenges browser user agents with a proof of work once a week per
+  cookie and denies known AI crawlers, then proxies to the app.
+- The app treats a request as public when `X-Forwarded-Proto` is https:
+  password form sets a cookie for a year, ntfy click links carry
+  `?t=<AUTH_TOKEN>` and set the same cookie, "abmelden" clears it. Five wrong
+  passwords from one IP lock it for an hour in-process. Every deny, fail and
+  ban is one `AUTH ... <ip>` line in the service log with the real client IP.
+- HAProxy stats on `http://<poco>:8404/`, LAN only.
 
 ### 6. DynDNS (`dyndns.py`)
 
@@ -192,14 +203,14 @@ Transport and auth:
 ```sh
 NTFY_TOPIC=mealprep-<random>                           # required for pushes
 BASE_URL=https://poco.example.org:8443                 # click target in pushes
-PASSWORD=<login password>                              # required, HTTPS refuses to start without it
+PASSWORD=<login password>                              # required for public access
 AUTH_TOKEN=<generated on first push>                   # logs the phone in via push links, keep secret
 LLM_URL=http://127.0.0.1:8080/v1/chat/completions      # default
 WEATHER_PLACE=Berlin                                   # optional, any town name, geocoded once
 DYNDNS_ZONE=example.org  DYNDNS_HOST=poco  DYNDNS_NS=a.ns14.net   # defaults match this install
 ```
 
-`PORT` (default 8090) and `TLS_PORT` (default 8443) env vars for `app.py`.
+`PORT` (default 8090) env var for `app.py`.
 
 Certificate, once, on the Poco. The AutoDNS API user is a clone of the main
 user with zone read, zone update and zone bulk update rights:
@@ -210,17 +221,19 @@ AUTODNS_USER=<clone> AUTODNS_PASSWORD=<pw> AUTODNS_CONTEXT=4 \
   ~/.acme.sh/acme.sh --issue --server letsencrypt --dns dns_autodns -d poco.example.org
 ~/.acme.sh/acme.sh --install-cert -d poco.example.org \
   --fullchain-file ~/mealprep/tls/fullchain.pem --key-file ~/mealprep/tls/key.pem \
-  --reloadcmd "SVDIR=$PREFIX/var/service sv restart mealprep"
+  --reloadcmd "sh ~/mealprep/repo/deploy/install-cert.sh"
 ```
 
-acme.sh renews from its own cron line and restarts the app. Router: forward
+acme.sh renews from its own cron line, the hook bundles chain + key for
+HAProxy and restarts it. Router: forward
 TCP 8443 to the Poco (TP-Link calls it Virtual Servers), enable UPnP if you
 want the IP lookup to stay inside the LAN.
 
 ## Install on the Poco
 
 ```sh
-pkg install cmake ninja git python cronie termux-api termux-services
+pkg install cmake ninja git python cronie termux-api termux-services haproxy
+# anubis: linux-arm64 tarball from github.com/TecharoHQ/anubis/releases -> ~/anubis/bin/anubis
 git clone --depth 1 https://github.com/ggml-org/llama.cpp ~/mealprep/llama.cpp
 cmake -S ~/mealprep/llama.cpp -B ~/mealprep/llama.cpp/build-cpu -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON -DLLAMA_CURL=OFF
 cmake --build ~/mealprep/llama.cpp/build-cpu --target llama-server -j8
@@ -228,7 +241,8 @@ cmake --build ~/mealprep/llama.cpp/build-cpu --target llama-server -j8
 git clone https://github.com/sandravwc/mealprep ~/mealprep/repo
 ```
 
-Then one runit service (`mealprep`) and the cron lines (intake, fridge,
+Then three runit services (`mealprep`, `anubis`, `haproxy`, run scripts in
+`deploy/`) and the cron lines (intake, fridge,
 dyndns every 5 min, janitor 16:50, `suggest.py --due` every 15 min, plus
 acme.sh's own), exact contents in `docs/server.md`. The model server is
 started by each job and stopped after, nothing holds 5 GB while idle.
@@ -257,5 +271,5 @@ disagrees.
 - Action buttons on the ntfy push itself.
 - Web push, manifest icons + service worker for a standalone install.
 - Qwen3-VL-8B as the fridge model, one at a time in the 8 GB.
-- Load balancer in front with fail2ban reading the `AUTH` lines.
+- fail2ban reading the `AUTH` lines, now that the IPs are real.
 - NPU: only via an Android APK hosting LiteRT + QNN. Not from Termux.

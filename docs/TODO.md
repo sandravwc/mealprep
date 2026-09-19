@@ -106,7 +106,8 @@ Plain HTTP cannot install a PWA or receive web push. Need a trusted cert on the 
 - [x] DynDNS 2026-09-19: `server/dyndns.py` cron */5. UPnP on the TP-Link VX231v is off, so public IP comes from ifconfig.co / icanhazip. Rewrites the A record via AutoDNS `0202001`, TTL 300, creds from `~/.acme.sh/account.conf`
 - [x] Router: Virtual Servers, TCP 8443 → 192.168.1.106. NAT loopback works
 - [x] Auth 2026-09-19: `server/auth.py`. Password + cookie, `?t=<AUTH_TOKEN>` on push links, in-app ban 5 fails/h per IP, `AUTH DENY|FAIL|BANNED <ip>` lines in the service log for fail2ban later
-- [ ] Load balancer in front, lab reasons, fail2ban reads the AUTH lines there. Not now
+- [x] 2026-09-19: HAProxy 3.4 (`pkg install haproxy`) terminates TLS on 8443, Anubis v1.27 (static arm64 tarball, runs rootless in Termux as-is) filters bots on 8923, app back to plain 8090. `X-Forwarded-For` makes the AUTH log lines carry real IPs. Verified: browser UA gets the PoW challenge, GPTBot explicit deny, curl passes to the login page
+- [ ] fail2ban on the AUTH lines. No iptables on Android, so it would need to drive HAProxy's stick table or a deny list file via the stats socket
 - [ ] Web push: VAPID keys, subscription stored in `data/push.json`, `pywebpush` (`pkg install python-cryptography` first). `notify()` in intake.py sends web push, ntfy stays as fallback until push proves reliable through Android doze
 - [ ] Action buttons in the push (gekocht / weg) via service worker `notificationclick`
 - [ ] Then ntfy becomes optional, keep as fallback or remove
