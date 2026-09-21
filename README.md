@@ -1,10 +1,8 @@
 # mealprep
 
-Self-hosted meal loop on a phone. Receipt photo in, "cook this tonight" push
-out. Runs on a Poco F5 Pro (Snapdragon 8+ Gen 1, 8 GB + 4 GB swap) under
-Termux, all inference local via llama.cpp + Gemma 4 E4B. No cloud model, no
-account, no database. Couple Python files and one HTML page. No React no
-nothing.
+Receipt photo in, "cook this tonight" push out. Python stdlib server + one
+HTML page (PWA) on a Poco F5 Pro under Termux, inference local via llama.cpp
++ Gemma 4 E4B, push via ntfy, flat JSON for data, haproxy + anubis in front.
 
 ## Goal
 
@@ -35,28 +33,19 @@ nothing.
 └──────────────────────┘                  └───────────────────────────────────────┘
 ```
 
-## Why this stack
+## Stack notes
 
-- Phone as server: already on, 8 GB RAM plus 4 GB swap, sips power. Termux
-  gives sshd, cron, runit, Python, clang. Nothing else needed. Model is loaded
-  per job, not resident: HyperOS kills the app when it sits on 5 GB all day.
-- Gemma 4 E4B via llama.cpp: only model tier that fits and reads German
-  receipts well. One model for receipts, fridge photos and recipe text.
-  CPU only in Termux: the Hexagon NPU has no llama.cpp support on this SoC and
-  Adreno OpenCL is unreachable from an app's linker namespace. The GPU does
-  work from an adb shell (see docs/TODO.md, phase 4b).
-- PWA instead of APK: one HTML file, no toolchain, no signing, no yearly SDK
-  tax.
-- ntfy for push: account-free, self-hostable, one HTTP POST. Web push would
-  need a service worker and VAPID plumbing for the same result.
-- Own domain + Let's Encrypt over the AutoDNS API instead of a VPN: nothing
-  to install on the client, no port 80, renews itself.
-- HAProxy for TLS and as the lab load balancer, Anubis in front of the app
-  as an on-prem bot filter. Both single static binaries, both run rootless in
-  Termux. Anubis does no TLS, so something has to sit before it anyway.
-- Flat JSON instead of SQLite: a household has hundreds of items, not
-  millions. Everything loads in one `json.load`.
-- Python stdlib only: `http.server`, `urllib`, `json`, `fcntl`. Zero pip.
+- Model loaded per job, not resident: HyperOS kills the app at 5 GB idle.
+- CPU only: no llama.cpp path to the Hexagon NPU on this SoC; Adreno OpenCL
+  unreachable from an app's linker namespace (works from `adb shell`, see
+  docs/TODO.md 4b).
+- PWA: one HTML file, no toolchain, no signing.
+- ntfy: one HTTP POST, account-free, self-hostable.
+- TLS: own domain, Let's Encrypt over the AutoDNS API, no port 80.
+- haproxy terminates TLS, anubis filters bots; both static binaries, rootless
+  in Termux. Anubis does no TLS itself.
+- Flat JSON: hundreds of items, one `json.load`.
+- Stdlib only: `http.server`, `urllib`, `json`, `fcntl`. No pip.
 
 ## Layout
 
