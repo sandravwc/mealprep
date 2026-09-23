@@ -1,3 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/sh
 exec 2>&1
+# stats socket: haproxy preserves an old socket file via link(), android denies link() to apps -> stale file = startup failure.
+# ponytail: full restarts only (sv restart); a seamless reload (USR2) would hit the same link() and fail.
+rm -f $HOME/haproxy.sock
 exec haproxy -W -db -f $HOME/haproxy.d
